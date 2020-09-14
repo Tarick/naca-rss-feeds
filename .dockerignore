@@ -1,0 +1,7 @@
+build
+cmd/*/Dockerfile
+.gitignore
+.git
+.vscode
+cmd/*/.vscode
+Makefile

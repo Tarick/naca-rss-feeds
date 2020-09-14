@@ -1,0 +1,36 @@
+---
+# THIS IS SAMPLE CONFIG FILE, USED FOR LOCAL DEVELOPMENT
+# Logging map partially mimics configuration of uber/zap Config structure
+# See  https://pkg.go.dev/go.uber.org/zap
+logging:
+  # Development key puts the logger in development mode, which changes the behavior of DPanicLevel and takes stacktraces more liberally.
+  development: true
+  # level: info
+  level: debug
+  encoding: console
+  # encoding: json
+  disable_caller: false
+  disable_stacktrace: false
+  disable_color: false
+  # output_paths: ["stdout", "/tmp/1.log"]
+  output_paths: ["stdout"]
+  error_output_paths: ["stderr"]
+
+database:
+  hostname: postgresql
+  port: 5432
+  name: rss_feeds
+  username: rss_feeds
+  password: rss_feeds
+  sslmode: disable
+  log_level: debug
+  min_connections: 2
+  max_connections: 30
+
+publish:
+  host: "nsq-nsqd:4150"
+  topic: "rss-feeds-refresh"
+
+server:
+  address: ":8080"
+  request_timeout: 60

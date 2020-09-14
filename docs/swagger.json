@@ -1,0 +1,234 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "this application provides API for RSS feeds management",
+    "title": "RSS Feeds API.",
+    "termsOfService": "None, early alpha",
+    "license": {
+      "name": "MIT",
+      "url": "http://opensource.org/license/MIT"
+    },
+    "version": "0.0.1"
+  },
+  "host": "localhost:8080",
+  "paths": {
+    "/feeds": {
+      "get": {
+        "description": "Returns all feeds registered in db",
+        "operationId": "getFeeds",
+        "responses": {
+          "200": {
+            "description": "list all feeds",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FeedResponseBody"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Creates feed using supplied params from body",
+        "operationId": "createFeed",
+        "parameters": [
+          {
+            "$ref": "#/definitions/Feed"
+          }
+        ],
+        "responses": {
+          "201": {
+            "$ref": "#/responses/FeedResponse"
+          },
+          "default": {
+            "$ref": "#/responses/ErrResponse"
+          }
+        }
+      }
+    },
+    "/feeds/{publication_uuid}": {
+      "get": {
+        "description": "Gets single feed using its publication_uuid as parameter",
+        "operationId": "getFeed",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "feed publication_uuid to get",
+            "name": "publication_uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/FeedResponse"
+          },
+          "default": {
+            "$ref": "#/responses/ErrResponse"
+          }
+        }
+      },
+      "put": {
+        "description": "Modifies feed using supplied params from body",
+        "operationId": "updateFeed",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Feed publication_uuid to update",
+            "name": "publication_uuid",
+            "in": "path",
+            "required": true
+          },
+          {
+            "$ref": "#/definitions/Feed"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/FeedResponse"
+          },
+          "default": {
+            "$ref": "#/responses/ErrResponse"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes feed using its publication_uuid",
+        "operationId": "deleteFeed",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Feed publication_uuid to update",
+            "name": "publication_uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Send success"
+          },
+          "default": {
+            "$ref": "#/responses/ErrResponse"
+          }
+        }
+      }
+    },
+    "/refreshFeeds": {
+      "put": {
+        "description": "Triggers refresh (pull of content) for all feeds",
+        "operationId": "refreshFeeds",
+        "responses": {
+          "204": {
+            "description": "Send success"
+          },
+          "default": {
+            "description": "Error payload",
+            "schema": {
+              "$ref": "#/responses/ErrResponse"
+            }
+          }
+        }
+      }
+    },
+    "/refreshFeeds/{publication_uuid}": {
+      "put": {
+        "description": "Triggers refresh (pull of content) for single feeds",
+        "operationId": "refreshFeed",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Feed publication_uuid to update",
+            "name": "publication_uuid",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Send success"
+          },
+          "default": {
+            "$ref": "#/responses/ErrResponse"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "ErrResponseBody": {
+      "description": "ErrResponseBody is readable output to application/human about error",
+      "type": "object",
+      "properties": {
+        "error": {
+          "description": "application-level error message, for debugging",
+          "type": "string",
+          "x-go-name": "ErrorText"
+        },
+        "status": {
+          "description": "user-level status message",
+          "type": "string",
+          "x-go-name": "StatusText"
+        }
+      },
+      "x-go-package": "github.com/Tarick/naca-rss-feeds/internal/application/server"
+    },
+    "Feed": {
+      "description": "Feed defines minimal feed type",
+      "type": "object",
+      "properties": {
+        "publication_uuid": {
+          "$ref": "#/definitions/UUID"
+        },
+        "url": {
+          "description": "URL of the feed\nTODO: separate type, validation (value object)",
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
+      "x-go-package": "github.com/Tarick/naca-rss-feeds/internal/entity"
+    },
+    "FeedResponseBody": {
+      "title": "FeedResponseBody is returned on successfull operations to get, create or delete feed.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Feed"
+        }
+      ],
+      "x-go-package": "github.com/Tarick/naca-rss-feeds/internal/application/server"
+    },
+    "UUID": {
+      "type": "array",
+      "title": "UUID is an array type to represent the value of a UUID, as defined in RFC-4122.",
+      "items": {
+        "type": "integer",
+        "format": "uint8"
+      },
+      "x-go-package": "github.com/gofrs/uuid"
+    }
+  },
+  "responses": {
+    "ErrResponse": {
+      "description": "ErrResponse renderer type for handling all sorts of errors.",
+      "schema": {
+        "$ref": "#/definitions/ErrResponseBody"
+      }
+    },
+    "FeedResponse": {
+      "description": "FeedResponse defines Feed response with Body and any additional headers",
+      "schema": {
+        "$ref": "#/definitions/FeedResponseBody"
+      }
+    }
+  }
+}

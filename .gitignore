@@ -1,0 +1,5 @@
+build
+
+.tags
+cmd/feeds-api/feeds-api
+cmd/feeds-worker/feeds-worker
