@@ -11,7 +11,7 @@ require (
 	github.com/go-chi/stampede v0.4.4
 	github.com/go-ozzo/ozzo-validation/v4 v4.2.2
 	github.com/gofrs/uuid v3.3.0+incompatible
-	github.com/jackc/pgx/v4 v4.8.1
+	github.com/jackc/pgx/v4 v4.9.0
 	github.com/mmcdole/gofeed v1.1.0
 	github.com/nsqio/go-nsq v1.0.8
 	github.com/spf13/cobra v1.0.0

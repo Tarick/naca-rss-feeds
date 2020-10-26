@@ -35,8 +35,8 @@ func (h *messageHandler) HandleMessage(m *nsq.Message) error {
 	err := h.processor.Process(m.Body)
 	if err != nil {
 		h.logger.Error("Failure processing message ", string(m.Body), ": ", err)
-		// Returning a non-nil error will automatically send a REQ command to NSQ to re-queue the message.
-		//TODO: handle errors, that should not cause reschedule
+		// Returning a non-nil error will automatically send a REQ command to NSQ to re-queue a message.
+		//TODO: handle errors that should not cause a reschedule
 		return err
 	}
 	return nil

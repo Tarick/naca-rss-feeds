@@ -7,7 +7,7 @@ WORKDIR /app
 COPY go.mod .
 COPY go.sum .
 RUN GOOS=linux GOARCH=amd64 go mod download
-ENV PACKAGE=github.com/Tarick/naca/rss-feeds
+ENV PACKAGE=github.com/Tarick/naca-rss-feeds
 ARG BUILD_VERSION
 ADD . .
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags 'netgo static_build' -ldflags "-extldflags=-static -w -s -X ${PACKAGE}/version.Version=$BUILD_VERSION -X ${PACKAGE}/version.BuildTime=$(date --utc  +%FT%TZ)" -o ./build/feeds-api ./cmd/feeds-api

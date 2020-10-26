@@ -6,12 +6,12 @@
     "compounds": [
         {
             "name": "All Feeds workers and API",
-            "configurations": ["Launch Feeds Worker for all feeds update", "Launch Feeds Worker for one feed update", "Launch Feeds API"]
+            "configurations": ["Launch Feeds Worker for feeds update", "Launch Feeds API"]
         }
     ],
     "configurations": [
         {
-            "name": "Launch Feeds Worker for feed update",
+            "name": "Launch Feeds Worker for feeds update",
             "type": "go",
             "request": "launch",
             "mode": "auto",
