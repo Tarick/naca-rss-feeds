@@ -1,12 +1,10 @@
 package consumer
 
 import (
-	"github.com/Tarick/naca-rss-feeds/internal/logger"
-
 	"github.com/nsqio/go-nsq"
 )
 
-// MessageProducerConfig defines NSQ publish configuration
+// MessageConsumerConfig defines NSQ publish configuration
 type MessageConsumerConfig struct {
 	NSQLookup string `mapstructure:"nsqlookup"`
 	Topic     string `mapstructure:"topic"`
@@ -21,7 +19,7 @@ type MessageProcessor interface {
 }
 type messageHandler struct {
 	processor MessageProcessor
-	logger    logger.Logger
+	logger    Logger
 }
 
 // HandleMessage implements the Handler interface.
@@ -45,7 +43,7 @@ func (h *messageHandler) HandleMessage(m *nsq.Message) error {
 type MessageConsumer struct {
 	consumer       *nsq.Consumer
 	nsqLookupdHost string
-	logger         logger.Logger
+	logger         Logger
 	handler        *messageHandler
 }
 
@@ -59,7 +57,7 @@ func (c *MessageConsumer) Stop() {
 	c.consumer.Stop()
 }
 
-func New(config *MessageConsumerConfig, processor MessageProcessor, logger logger.Logger) (*MessageConsumer, error) {
+func New(config *MessageConsumerConfig, processor MessageProcessor, logger Logger) (*MessageConsumer, error) {
 	NSQConsumerConfig := nsq.NewConfig()
 	NSQConsumerConfig.MaxInFlight = config.Prefetch
 	NSQConsumerConfig.MaxAttempts = config.Attempts

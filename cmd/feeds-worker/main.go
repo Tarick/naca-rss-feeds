@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Tarick/naca-items/client/itempublisher"
 	"github.com/Tarick/naca-rss-feeds/internal/application/worker"
 	"github.com/Tarick/naca-rss-feeds/internal/logger/zaplogger"
 	"github.com/Tarick/naca-rss-feeds/internal/messaging"
@@ -24,7 +25,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "rss-feeds-worker",
 		Short: "RSS feeds worker to fetch and parse feeds",
-		Long:  `Command line worker for RSS/Atom feeds retrieval and news items producing`,
+		Long:  `Command line worker for RSS/Atom feeds retrieval and news item producing`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if cfgFile != "" {
 				// Use config file from the flag.
@@ -80,14 +81,28 @@ func main() {
 			consumeViperConfig := viper.Sub("consume")
 			consumeCfg := &consumer.MessageConsumerConfig{}
 			if err := consumeViperConfig.UnmarshalExact(&consumeCfg); err != nil {
-				fmt.Printf("FATAL: failure reading 'consume' configuration: %s", err)
+				fmt.Println("FATAL: failure reading 'consume' configuration, ", err)
+				os.Exit(1)
+			}
+			itemPublisherClientViperConfig := viper.Sub("itemPublish")
+			itemPublisherClientCfg := struct {
+				Host  string `mapstructure:"host"`
+				Topic string `mapstructure:"topic"`
+			}{}
+			if err := itemPublisherClientViperConfig.UnmarshalExact(&itemPublisherClientCfg); err != nil {
+				fmt.Println("FATAL: failure reading 'itemPublish' configuration, ", err)
+				os.Exit(1)
+			}
+			itemPublisherClient, err := itempublisher.New(itemPublisherClientCfg.Host, itemPublisherClientCfg.Topic)
+			if err != nil {
+				fmt.Println("FATAL: failure creating itemPublisher client, ", err)
 				os.Exit(1)
 			}
 			// Construct consumer with message handler
-			rssFeedsProcessor := messaging.NewRSSFeedsProcessor(db, rssFeedsUpdateProducer, logger)
+			rssFeedsProcessor := messaging.NewRSSFeedsProcessor(db, rssFeedsUpdateProducer, itemPublisherClient, logger)
 			consumer, err := consumer.New(consumeCfg, rssFeedsProcessor, logger)
 			if err != nil {
-				fmt.Printf("FATAL: consumer creation failed, %v", err)
+				fmt.Println("FATAL: consumer creation failed, ", err)
 				os.Exit(1)
 			}
 			wrkr := worker.New(consumer, logger)

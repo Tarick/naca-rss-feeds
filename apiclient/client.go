@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/Tarick/naca-rss-feeds/internal/application/server"
@@ -15,30 +16,32 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const feedsCRUDPath string = "feeds"
-const feedsRefreshPath string = "refreshFeed"
+const feedsCRUDPath string = "/feeds"
 
 // TODO: WithTimeout?
 // New creates RSS Feeds API http client
-func New(feedsAPIURL string) *client {
+func New(baseURL string) (*client, error) {
+	url, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
 	return &client{
-		feedsCRUDURL:    fmt.Sprintf("%s/%s", feedsAPIURL, feedsCRUDPath),
-		feedsRefreshURL: fmt.Sprintf("%s/%s", feedsAPIURL, feedsRefreshPath),
+		baseURL: url,
 		httpClient: &http.Client{
 			Timeout: time.Minute,
-		},
-	}
+		}}, nil
 }
 
 // TODO: add logger
 type client struct {
-	feedsCRUDURL    string
-	feedsRefreshURL string
-	httpClient      *http.Client
+	baseURL    *url.URL
+	httpClient *http.Client
 }
 
 func (c *client) GetRSSFeedByPublicationUUID(ctx context.Context, publicationUUID uuid.UUID) (entity.Feed, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", c.feedsCRUDURL, publicationUUID), nil)
+	rel := &url.URL{Path: fmt.Sprintf("%s/%s", feedsCRUDPath, publicationUUID)}
+	u := c.baseURL.ResolveReference(rel)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return entity.Feed{}, err
 	}
@@ -71,7 +74,9 @@ func (c *client) GetRSSFeedByPublicationUUID(ctx context.Context, publicationUUI
 }
 
 func (c *client) GetAllRSSFeeds(ctx context.Context) ([]entity.Feed, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s", c.feedsCRUDURL), nil)
+	rel := &url.URL{Path: feedsCRUDPath}
+	u := c.baseURL.ResolveReference(rel)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -96,16 +101,18 @@ func (c *client) GetAllRSSFeeds(ctx context.Context) ([]entity.Feed, error) {
 	return feeds, nil
 }
 
-func (c *client) UpdateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, url string) error {
+func (c *client) UpdateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, feedURL string) error {
 	feed := &entity.Feed{
 		PublicationUUID: publicationUUID,
-		URL:             url,
+		URL:             feedURL,
 	}
 	body, err := json.Marshal(feed)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/%s", c.feedsCRUDURL, feed.PublicationUUID), bytes.NewReader(body))
+	rel := &url.URL{Path: fmt.Sprintf("%s/%s", feedsCRUDPath, publicationUUID)}
+	u := c.baseURL.ResolveReference(rel)
+	req, err := http.NewRequest("PUT", u.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -126,16 +133,18 @@ func (c *client) UpdateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, u
 	return nil
 }
 
-func (c *client) CreateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, url string) error {
+func (c *client) CreateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, feedURL string) error {
 	feed := &entity.Feed{
 		PublicationUUID: publicationUUID,
-		URL:             url,
+		URL:             feedURL,
 	}
 	body, err := json.Marshal(feed)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s", c.feedsCRUDURL), bytes.NewReader(body))
+	rel := &url.URL{Path: feedsCRUDPath}
+	u := c.baseURL.ResolveReference(rel)
+	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -158,7 +167,9 @@ func (c *client) CreateRSSFeed(ctx context.Context, publicationUUID uuid.UUID, u
 }
 
 func (c *client) DeleteRSSFeed(ctx context.Context, publicationUUID uuid.UUID) error {
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", c.feedsCRUDURL, publicationUUID), nil)
+	rel := &url.URL{Path: fmt.Sprintf("%s/%s", feedsCRUDPath, publicationUUID)}
+	u := c.baseURL.ResolveReference(rel)
+	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
 		return err
 	}

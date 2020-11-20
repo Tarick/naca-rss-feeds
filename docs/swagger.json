@@ -147,7 +147,7 @@
         "operationId": "refreshFeed",
         "parameters": [
           {
-            "type": "integer",
+            "type": "string",
             "description": "Feed publication_uuid to update",
             "name": "publication_uuid",
             "in": "path",

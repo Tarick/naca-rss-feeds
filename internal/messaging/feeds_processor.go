@@ -8,12 +8,19 @@ import (
 	"time"
 
 	"github.com/Tarick/naca-rss-feeds/internal/entity"
-	"github.com/Tarick/naca-rss-feeds/internal/logger"
 
 	"github.com/gofrs/uuid"
 
 	"github.com/mmcdole/gofeed"
 )
+
+type Logger interface {
+	Debug(args ...interface{})
+	Info(args ...interface{})
+	Warn(args ...interface{})
+	Error(args ...interface{})
+	Fatal(args ...interface{})
+}
 
 // ErrNotModified is used for Etag and Last-Modified handling
 var ErrNotModified = errors.New("not modified")
@@ -41,17 +48,29 @@ type FeedsRepository interface {
 	SaveProcessedItem(*entity.ProcessedItem) error
 	ProcessedItemExists(*entity.ProcessedItem) (bool, error)
 }
+type ItemPublisherClient interface {
+	PublishNewItem(
+		publicationUUID uuid.UUID,
+		title string,
+		description string,
+		content string,
+		source string,
+		author string,
+		publishedDate time.Time,
+	) error
+}
 
 // Handler for consumer
 type rssFeedsProcessor struct {
 	repository          FeedsRepository
 	feedsUpdater        RSSFeedsUpdateProducer
-	logger              logger.Logger
+	itemPublisher       ItemPublisherClient
+	logger              Logger
 	GMTTimeZoneLocation *time.Location
 }
 
 // NewRSSFeedsProcessor creates processor for messaging feeds operations
-func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFeedsUpdateProducer, logger logger.Logger) *rssFeedsProcessor {
+func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFeedsUpdateProducer, itemPublisherClient ItemPublisherClient, logger Logger) *rssFeedsProcessor {
 	GMTTimeZoneLocation, err := time.LoadLocation("GMT")
 	if err != nil {
 		panic(err)
@@ -59,6 +78,7 @@ func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFee
 	return &rssFeedsProcessor{
 		repository,
 		feedsUpdateProducer,
+		itemPublisherClient,
 		logger,
 		GMTTimeZoneLocation,
 	}
@@ -134,26 +154,21 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 			p.logger.Debug("Item ", item.GUID, "with publish date ", item.Published, " already exist, skipping processing")
 			continue
 		}
-		// Otherwise process
-		// newItem := &PublishItem{
-		// 	Author:      item.Author.Name,
-		// 	Title:       item.Title,
-		// 	Description: item.Description,
-		// 	Content:     item.Content,
-		// 	GUID:        item.GUID,
-		// 	Link:        item.Link,
-		// 	Published:   *item.PublishedParsed,
-		// 	Updated:     *item.UpdatedParsed,
-		// }
-		// publishedMQItem, err := json.Marshal(*newItem)
-		// // if err != nil {
-		// // 	log.Error(fmt.Sprint("Failure converting item to JSON: ", err))
-		// // 	continue
-		// // }
-		// // if err = producer.Publish(publishConfig.Topic, publishedMQItem); err != nil {
-		// // 	log.Error(fmt.Sprint("Failure pushing item to process: ", err))
-		// // 	continue
-		// // }
+		// Create validate for item?
+		var author string
+		if item.Author != nil {
+			author = item.Author.Name
+		} else {
+			author = "unknown"
+		}
+
+		// Publish new item to Items service
+		err = p.itemPublisher.PublishNewItem(publicationUUID, item.Title, item.Description, item.Content, item.Link, author, item.PublishedParsed.In(time.UTC))
+
+		if err != nil {
+			p.logger.Error("failed to publish new item ", item.GUID, " of publication ", dbFeed.PublicationUUID, " with error ", err)
+			continue
+		}
 		p.logger.Info("Pushed item ", item.GUID, " to process")
 		if err := p.repository.SaveProcessedItem(processedItem); err != nil {
 			p.logger.Error("Failure saving new processed item: ", err)
@@ -259,14 +274,3 @@ func (p *rssFeedsProcessor) refreshAllFeeds() error {
 	}
 	return nil
 }
-
-// type PublishItem struct {
-// 	Title       string    `json:"title"`
-// 	Description string    `json:"description"`
-// 	Content     string    `json:"content"`
-// 	Link        string    `json:"link"`
-// 	Updated     time.Time `json:"updated"`
-// 	Published   time.Time `json:"published"`
-// 	Author      string    `json:"author"`
-// 	GUID        string    `json:"guid"`
-// }

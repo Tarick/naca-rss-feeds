@@ -39,3 +39,7 @@ consume:
 publish:
   host: "nsq-nsqd:4150"
   topic: "rss-feeds-refresh"
+
+itemPublish:
+  host: "nsq-nsqd:4150"
+  topic: "new-items-process"

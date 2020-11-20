@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.com/Tarick/naca-rss-feeds/internal/entity"
-	"github.com/Tarick/naca-rss-feeds/internal/logger"
-
-	"go.uber.org/zap"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -24,7 +21,7 @@ import (
 // Server defines HTTP application
 type Server struct {
 	httpServer *http.Server
-	logger     logger.Logger
+	logger     Logger
 	repository FeedsRepository
 	producer   RSSFeedsUpdateProducer
 }
@@ -51,7 +48,8 @@ type Config struct {
 }
 
 // New creates new server configuration and configurates middleware
-func New(serverConfig Config, logger logger.Logger, feedRepository FeedsRepository, messageProducer RSSFeedsUpdateProducer) *Server {
+// TODO: move routes to handler file
+func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, messageProducer RSSFeedsUpdateProducer) *Server {
 	r := chi.NewRouter()
 	s := &Server{
 		httpServer: &http.Server{Addr: serverConfig.Address, Handler: r},
@@ -195,7 +193,7 @@ func New(serverConfig Config, logger logger.Logger, feedRepository FeedsReposito
 		//    in: path
 		//    description: Feed publication_uuid to update
 		//    required: true
-		//    type: integer
+		//    type: string
 		// responses:
 		//    '204':
 		//      description: Send success
@@ -209,60 +207,11 @@ func New(serverConfig Config, logger logger.Logger, feedRepository FeedsReposito
 	return s
 }
 
-// startAndServe configures routers and starts http server
+// StartAndServe configures routers and starts http server
 func (s *Server) StartAndServe() {
 	s.logger.Info("Server is ready to serve on ", s.httpServer.Addr)
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		s.logger.Fatal(fmt.Sprint("Server startup failed: ", err))
-	}
-}
-
-// middlewareLogger is used for request logging. Only Zap logger is supported now, or dummy.
-func middlewareLogger(logger logger.Logger) func(next http.Handler) http.Handler {
-	l, ok := logger.(*zap.SugaredLogger)
-	if ok {
-		log := l.Desugar()
-		return func(next http.Handler) http.Handler {
-			fn := func(w http.ResponseWriter, r *http.Request) {
-				ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-
-				t := time.Now()
-				defer func() {
-					// Do not log kube-probe healtchecks
-					if !strings.HasPrefix(r.UserAgent(), "kube-probe") {
-						log.Info("Served",
-							zap.Any("metadata", map[string]interface{}{
-								"request-headers": map[string]interface{}{
-									"Content-Type":    r.Header.Get("Content-Type"),
-									"Content-Length":  r.Header.Get("Content-Length"),
-									"User-Agent":      r.UserAgent(),
-									"Server":          r.Header.Get("Server"),
-									"Via":             r.Header.Get("Via"),
-									"Accept":          r.Header.Get("Accept"),
-									"X-FORWARDED-FOR": r.Header.Get("X-FORWARDED-FOR"),
-								},
-							}),
-							// Essentials
-							zap.String("method", r.Method),
-							zap.String("RemoteAddr", r.RemoteAddr),
-							zap.String("Proto", r.Proto),
-							zap.String("Path", r.URL.Path),
-							zap.String("reqID", middleware.GetReqID(r.Context())),
-							zap.Duration("Duration", time.Since(t)),
-							zap.Int("size", ww.BytesWritten()),
-							zap.Int("status", ww.Status()),
-						)
-					}
-				}()
-
-				next.ServeHTTP(ww, r)
-			}
-			return http.HandlerFunc(fn)
-		}
-	}
-	// if not zap.SugaredLogger, return dummy middleware
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { next.ServeHTTP(w, r) })
 	}
 }
 

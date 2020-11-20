@@ -4,8 +4,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/Tarick/naca-rss-feeds/internal/logger"
 )
 
 type Worker interface {
@@ -20,10 +18,10 @@ type MessageConsumer interface {
 
 type worker struct {
 	consumer MessageConsumer
-	logger   logger.Logger
+	logger   Logger
 }
 
-func New(consumer MessageConsumer, logger logger.Logger) *worker {
+func New(consumer MessageConsumer, logger Logger) *worker {
 	return &worker{consumer: consumer, logger: logger}
 }
 
