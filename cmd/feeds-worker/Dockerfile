@@ -1,4 +1,4 @@
-FROM golang:1.15.0-alpine as build
+FROM golang:1.15.5-alpine as build
 RUN apk --no-cache add tzdata git
 WORKDIR /app
 COPY go.mod .
@@ -14,4 +14,5 @@ WORKDIR /
 ENV TZ=UTC
 COPY --from=build /app/build/feeds-worker /
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=build /etc/ssl/certs /etc/ssl/certs
 ENTRYPOINT ["./feeds-worker"]

@@ -1,5 +1,5 @@
-FROM golang:1.15.0-alpine as build
-RUN apk --no-cache add tzdata curl && \
+FROM golang:1.15.5-alpine as build
+RUN apk --no-cache add tzdata curl git && \
     curl --silent -o /tmp/swaggerui.tgz https://codeload.github.com/swagger-api/swagger-ui/tar.gz/v3.26.1 && \
     tar -C /tmp  -xvzf /tmp/swaggerui.tgz swagger-ui-3.26.1/dist --strip-components=1 && mv /tmp/dist /tmp/swaggerui &&\
         sed -i -e 's|https://petstore.swagger.io/v2/swagger.json|http://localhost:8080/doc/swagger.json|g' /tmp/swaggerui/index.html
@@ -19,5 +19,6 @@ COPY --from=build /tmp/swaggerui /swaggerui
 COPY --from=build /app/docs/swagger.json /swaggerui
 COPY --from=build /app/build/feeds-api /
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=build /etc/ssl/certs /etc/ssl/certs
 ENTRYPOINT ["./feeds-api"]
 CMD [ "--config", "./config.yaml" ]

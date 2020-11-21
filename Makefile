@@ -14,7 +14,7 @@ LDFLAGS=-extldflags=-static -w -s -X ${PACKAGE}/internal/version.Version=${BUILD
 CONTAINER_IMAGE_REGISTRY=local/rss-feeds
 
 help:
-	@echo "build, build-images, deps, build-worker, build-api, build-worker-image, build-api-image, generate-api"
+	@echo "build, build-images, deps, build-worker, build-api, build-worker-image, build-api-image, generate-api, deploy-to-local-k8s"
 	
 version:
 	@echo "${BUILD_VERSION}"
@@ -69,3 +69,11 @@ build-migrations-image:
 	docker build -t ${CONTAINER_IMAGE_REGISTRY}/rss-feeds-sql-migrations:${BUILD_BRANCH}-${BUILD_HASH} \
 	-t ${CONTAINER_IMAGE_REGISTRY}/rss-feeds-sql-migrations:${BUILD_VERSION} \
 	-f migrations/Dockerfile .
+
+
+deploy-to-local-k8s: build-images
+	@echo "[INFO] Deploying current RSS feeds to local k8s service"
+	@echo "[INFO] Deleting old SQL migrations"
+	helmfile --environment local --selector app_name=rss-feeds-sql-migrations -f ../naca-ops-config/helm/helmfile.yaml destroy
+	@echo "[INFO] Deploying rss-feeds images with tag ${BUILD_VERSION}"
+	RSS_FEEDS_TAG=${BUILD_VERSION} helmfile --environment local --selector tier=naca-rss-feeds -f ../naca-ops-config/helm/helmfile.yaml sync --skip-deps

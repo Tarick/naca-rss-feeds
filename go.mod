@@ -7,7 +7,7 @@ replace github.com/Tarick/naca-rss-feeds => ./
 // replace github.com/Tarick/naca-items => ../naca-items
 
 require (
-	github.com/Tarick/naca-items v0.0.0-20201026181359-a8a535368d66 // indirect
+	github.com/Tarick/naca-items v0.0.2-0.20201121170737-04c9ca12dcab
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-chi/cors v1.1.1
 	github.com/go-chi/render v1.0.1
