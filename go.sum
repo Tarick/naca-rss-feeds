@@ -17,8 +17,12 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/PuerkitoBio/goquery v1.5.1 h1:PSPBGne8NIUWw+/7vFBV+kG2J/5MOjbzc7154OaKCSE=
 github.com/PuerkitoBio/goquery v1.5.1/go.mod h1:GsLWisAFVj4WgDibEWF4pvYnkVQBpKBKeU+7zCJoLcc=
+github.com/Tarick/naca-items v0.0.1 h1:2c24A1GnfXZL1Pd5KvqkZ7hIOm+8tuJmsOuKlRC/iJo=
+github.com/Tarick/naca-items v0.0.1/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/Tarick/naca-items v0.0.2-0.20201121170737-04c9ca12dcab h1:8SLp1tMFoU8D1YxePRh1yUve5VlR75nbM9dURoQjWOQ=
 github.com/Tarick/naca-items v0.0.2-0.20201121170737-04c9ca12dcab/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
+github.com/Tarick/naca-items v0.0.2-0.20201123151239-cd32fbedaf31 h1:FvnZJJRFpebnk0J/7TUaIH5PcwW3ZAu9orGhccXgbc8=
+github.com/Tarick/naca-items v0.0.2-0.20201123151239-cd32fbedaf31/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/andybalholm/cascadia v1.1.0 h1:BuuO6sSfQNFRu1LppgbD25Hr2vLYW25JvxHs5zzsLTo=
