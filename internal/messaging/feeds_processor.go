@@ -57,6 +57,7 @@ type ItemPublisherClient interface {
 		content string,
 		source string,
 		author string,
+		languageCode string,
 		publishedDate time.Time,
 	) error
 }
@@ -164,7 +165,14 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 		}
 
 		// Publish new item to Items service
-		err = p.itemPublisher.PublishNewItem(publicationUUID, item.Title, item.Description, item.Content, item.Link, author, item.PublishedParsed.In(time.UTC))
+		err = p.itemPublisher.PublishNewItem(publicationUUID,
+			item.Title,
+			item.Description,
+			item.Content,
+			item.Link,
+			author,
+			dbFeed.LanguageCode,
+			item.PublishedParsed.In(time.UTC))
 
 		if err != nil {
 			p.logger.Error("failed to publish new item ", item.GUID, " of publication ", dbFeed.PublicationUUID, " with error ", err)

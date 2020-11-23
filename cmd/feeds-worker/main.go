@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Tarick/naca-items/client/itempublisher"
+	"github.com/Tarick/naca-items/pkg/itempublisher"
 	"github.com/Tarick/naca-rss-feeds/internal/application/worker"
 	"github.com/Tarick/naca-rss-feeds/internal/logger/zaplogger"
 	"github.com/Tarick/naca-rss-feeds/internal/messaging"

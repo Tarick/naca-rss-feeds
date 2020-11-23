@@ -77,5 +77,7 @@ deploy-to-local-k8s:
 	@echo "[INFO] Deploying current RSS feeds to local k8s service"
 	@echo "[INFO] Deleting old SQL migrations"
 	helmfile --environment local --selector app_name=rss-feeds-sql-migrations -f ../naca-ops-config/helm/helmfile.yaml destroy
+	# Ugly workaround for helm 3.4 'spec.clusterIP: Invalid value: "": field is immutable' bug
+	helmfile --environment local --selector app_name=rss-feeds-api -f ../naca-ops-config/helm/helmfile.yaml destroy
 	@echo "[INFO] Deploying rss-feeds images with tag ${BUILD_VERSION}"
 	RSS_FEEDS_TAG=${BUILD_VERSION} helmfile --environment local --selector tier=naca-rss-feeds -f ../naca-ops-config/helm/helmfile.yaml sync --skip-deps
