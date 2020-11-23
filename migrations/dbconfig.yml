@@ -1,5 +1,0 @@
-production:
-    dialect: postgres
-    datasource: host=postgresql dbname=rss_feeds user=rss_feeds password=rss_feeds sslmode=disable
-    dir: migrations
-    table: migrations

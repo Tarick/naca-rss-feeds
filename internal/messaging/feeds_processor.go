@@ -48,6 +48,7 @@ type FeedsRepository interface {
 	SaveProcessedItem(*entity.ProcessedItem) error
 	ProcessedItemExists(*entity.ProcessedItem) (bool, error)
 }
+
 type ItemPublisherClient interface {
 	PublishNewItem(
 		publicationUUID uuid.UUID,

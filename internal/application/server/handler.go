@@ -83,8 +83,9 @@ type FeedRequestBody struct {
 // Validate request body
 func (b FeedRequestBody) Validate() error {
 	return validation.ValidateStruct(&b,
-		validation.Field(&b.URL, validation.Required, validation.Length(5, 100), is.URL),
 		validation.Field(&b.PublicationUUID, validation.Required, is.UUID, validation.By(checkUUIDNotNil)),
+		validation.Field(&b.URL, validation.Required, validation.Length(5, 100), is.URL),
+		validation.Field(&b.LanguageCode, validation.Required, validation.Length(2, 3), is.CountryCode2),
 	)
 }
 
@@ -118,6 +119,7 @@ func (s *Server) createFeed(w http.ResponseWriter, r *http.Request) {
 	f := &entity.Feed{
 		PublicationUUID: body.PublicationUUID,
 		URL:             body.URL,
+		LanguageCode:    body.LanguageCode,
 	}
 	// TODO: create validator on record, that already exist
 	if err := s.repository.Create(f); err != nil {
@@ -134,12 +136,14 @@ func (s *Server) updateFeed(w http.ResponseWriter, r *http.Request) {
 
 	body := new(FeedRequestBody)
 	body.URL = dbFeed.URL
+	body.LanguageCode = dbFeed.LanguageCode
 	body.PublicationUUID = dbFeed.PublicationUUID
 	if err := render.Bind(r, body); err != nil {
 		ErrInvalidRequest(err).Render(w, r)
 		return
 	}
 	dbFeed.URL = body.URL
+	dbFeed.LanguageCode = body.LanguageCode
 	dbFeed.PublicationUUID = body.PublicationUUID
 	if err := s.repository.Update(dbFeed); err != nil {
 		ErrInternal(err).Render(w, r)

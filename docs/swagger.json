@@ -187,6 +187,10 @@
       "description": "Feed defines minimal feed type",
       "type": "object",
       "properties": {
+        "language_code": {
+          "type": "string",
+          "x-go-name": "LanguageCode"
+        },
         "publication_uuid": {
           "$ref": "#/definitions/UUID"
         },

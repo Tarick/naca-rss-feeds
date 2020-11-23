@@ -2,7 +2,7 @@ SHELL:=/bin/bash
 
 .DEFAULT_GOAL := help
 # put here commands, that have the same name as files in dir
-.PHONY: run clean generate build docker_build docker_push
+.PHONY: run clean generate build docker_build docker_push build-and-deploy
 
 BUILD_TAG=$(shell git describe --tags --abbrev=0 HEAD)
 BUILD_HASH=$(shell git rev-parse --short HEAD)
@@ -14,7 +14,7 @@ LDFLAGS=-extldflags=-static -w -s -X ${PACKAGE}/internal/version.Version=${BUILD
 CONTAINER_IMAGE_REGISTRY=local/rss-feeds
 
 help:
-	@echo "build, build-images, deps, build-worker, build-api, build-worker-image, build-api-image, generate-api, deploy-to-local-k8s"
+	@echo "build, build-images, deps, build-worker, build-api, build-worker-image, build-api-image, generate-api, build-and-deploy, deploy-to-local-k8s"
 	
 version:
 	@echo "${BUILD_VERSION}"
@@ -71,7 +71,9 @@ build-migrations-image:
 	-f migrations/Dockerfile .
 
 
-deploy-to-local-k8s: build-images
+build-and-deploy: build-images deploy-to-local-k8s
+
+deploy-to-local-k8s: 
 	@echo "[INFO] Deploying current RSS feeds to local k8s service"
 	@echo "[INFO] Deleting old SQL migrations"
 	helmfile --environment local --selector app_name=rss-feeds-sql-migrations -f ../naca-ops-config/helm/helmfile.yaml destroy

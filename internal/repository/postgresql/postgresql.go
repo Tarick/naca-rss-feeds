@@ -69,12 +69,12 @@ func New(databaseConfig *Config, logger pgx.Logger) (*FeedsRepositoryImpl, error
 }
 
 func (repository *FeedsRepositoryImpl) Create(f *entity.Feed) error {
-	_, err := repository.pool.Exec(context.Background(), "insert into feeds (publication_uuid, url) values ($1, $2)", f.PublicationUUID, f.URL)
+	_, err := repository.pool.Exec(context.Background(), "insert into feeds (publication_uuid, url, language_code) values ($1, $2, $3)", f.PublicationUUID, f.URL, f.LanguageCode)
 	return err
 }
 
 func (feedRepo *FeedsRepositoryImpl) Update(f *entity.Feed) error {
-	_, err := feedRepo.pool.Exec(context.Background(), "update feeds set url=$1 where publication_uuid=$2", f.URL, f.PublicationUUID)
+	_, err := feedRepo.pool.Exec(context.Background(), "update feeds set url=$1, language_code=$2 where publication_uuid=$3", f.URL, f.LanguageCode, f.PublicationUUID)
 	return err
 }
 
@@ -91,7 +91,7 @@ func (feedRepo *FeedsRepositoryImpl) Delete(publicationUUID uuid.UUID) error {
 
 func (feedRepo *FeedsRepositoryImpl) GetByPublicationUUID(publicationUUID uuid.UUID) (*entity.Feed, error) {
 	f := &entity.Feed{}
-	err := feedRepo.pool.QueryRow(context.Background(), "select publication_uuid, url from feeds where publication_uuid=$1", publicationUUID).Scan(&f.PublicationUUID, &f.URL)
+	err := feedRepo.pool.QueryRow(context.Background(), "select publication_uuid, url, language_code from feeds where publication_uuid=$1", publicationUUID).Scan(&f.PublicationUUID, &f.URL, &f.LanguageCode)
 	if err != nil && err == pgx.ErrNoRows {
 		return nil, nil
 	}
@@ -119,7 +119,7 @@ func (feedRepo *FeedsRepositoryImpl) SaveFeedHTTPMetadata(m *entity.FeedHTTPMeta
 }
 
 func (feedRepo *FeedsRepositoryImpl) GetAll() ([]entity.Feed, error) {
-	rows, err := feedRepo.pool.Query(context.Background(), "select publication_uuid, url from feeds")
+	rows, err := feedRepo.pool.Query(context.Background(), "select publication_uuid, url, language_code from feeds")
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (feedRepo *FeedsRepositoryImpl) GetAll() ([]entity.Feed, error) {
 	feeds := []entity.Feed{}
 	for rows.Next() {
 		f := entity.Feed{}
-		if err := rows.Scan(&f.PublicationUUID, &f.URL); err != nil {
+		if err := rows.Scan(&f.PublicationUUID, &f.URL, &f.LanguageCode); err != nil {
 			return nil, err
 		}
 		feeds = append(feeds, f)
