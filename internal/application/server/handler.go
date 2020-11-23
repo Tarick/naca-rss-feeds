@@ -85,7 +85,7 @@ func (b FeedRequestBody) Validate() error {
 	return validation.ValidateStruct(&b,
 		validation.Field(&b.PublicationUUID, validation.Required, is.UUID, validation.By(checkUUIDNotNil)),
 		validation.Field(&b.URL, validation.Required, validation.Length(5, 100), is.URL),
-		validation.Field(&b.LanguageCode, validation.Required, validation.Length(2, 3), is.CountryCode2),
+		validation.Field(&b.LanguageCode, validation.Required, validation.Length(2, 2), is.Alpha, is.LowerCase),
 	)
 }
 
