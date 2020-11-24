@@ -1,12 +1,12 @@
 package main
 
-//go:generate swagger generate spec --scan-models -o ../../docs/swagger.json
+//go:generate swagger generate spec --scan-models -o ../../internal/docs/swagger.json
 
 import (
 	"fmt"
 	"os"
 
-	_ "github.com/Tarick/naca-rss-feeds/docs"
+	_ "github.com/Tarick/naca-rss-feeds/internal/docs"
 	"github.com/Tarick/naca-rss-feeds/internal/logger/zaplogger"
 
 	"github.com/Tarick/naca-rss-feeds/internal/application/server"

@@ -16,7 +16,7 @@ FROM scratch as final
 WORKDIR /
 ENV TZ=UTC
 COPY --from=build /tmp/swaggerui /swaggerui
-COPY --from=build /app/docs/swagger.json /swaggerui
+COPY --from=build /app/internal/docs/swagger.json /swaggerui
 COPY --from=build /app/build/feeds-api /
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /etc/ssl/certs /etc/ssl/certs

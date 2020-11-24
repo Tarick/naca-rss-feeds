@@ -23,6 +23,8 @@ github.com/Tarick/naca-items v0.0.2-0.20201121170737-04c9ca12dcab h1:8SLp1tMFoU8
 github.com/Tarick/naca-items v0.0.2-0.20201121170737-04c9ca12dcab/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/Tarick/naca-items v0.0.2-0.20201123151239-cd32fbedaf31 h1:FvnZJJRFpebnk0J/7TUaIH5PcwW3ZAu9orGhccXgbc8=
 github.com/Tarick/naca-items v0.0.2-0.20201123151239-cd32fbedaf31/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
+github.com/Tarick/naca-items v0.0.2-0.20201124155801-17f39d379b07 h1:txq5rOXiLBILjaIcG5cfAzSJVEHoVjs+I9tAm934COI=
+github.com/Tarick/naca-items v0.0.2-0.20201124155801-17f39d379b07/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/andybalholm/cascadia v1.1.0 h1:BuuO6sSfQNFRu1LppgbD25Hr2vLYW25JvxHs5zzsLTo=
@@ -32,6 +34,8 @@ github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmV
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496 h1:zV3ejI06GQ59hwDQAvmK1qxOQGB3WuVTRoY0okPTAv0=
 github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496/go.mod h1:oGkLhpf+kjZl6xBf758TQhh5XrAeiJv/7FRz/2spLIg=
+github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef h1:46PFijGLmAjMPwCCCo7Jf0W6f9slllCkkv7vyc1yOSg=
+github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=

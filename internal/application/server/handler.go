@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Tarick/naca-rss-feeds/internal/entity"
-
+	"github.com/asaskevich/govalidator"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
 
@@ -72,20 +72,26 @@ func (s *Server) feedCtx(next http.Handler) http.Handler {
 
 // FeedRequest defines update/create request for single feed
 type FeedRequest struct {
+	// in: body
 	Body FeedRequestBody
 }
 
 // FeedRequestBody defines data of request body
 type FeedRequestBody struct {
+	// swagger:allOf
 	*entity.Feed
 }
+
+var isLanguageCode = validation.NewStringRuleWithError(
+	govalidator.IsISO693Alpha2,
+	validation.NewError("validation_is_language_code_2_letter", "must be a valid two-letter ISO693Alpha2 language code"))
 
 // Validate request body
 func (b FeedRequestBody) Validate() error {
 	return validation.ValidateStruct(&b,
 		validation.Field(&b.PublicationUUID, validation.Required, is.UUID, validation.By(checkUUIDNotNil)),
 		validation.Field(&b.URL, validation.Required, validation.Length(5, 100), is.URL),
-		validation.Field(&b.LanguageCode, validation.Required, validation.Length(2, 2), is.Alpha, is.LowerCase),
+		validation.Field(&b.LanguageCode, validation.Required, validation.Length(2, 2), isLanguageCode),
 	)
 }
 
