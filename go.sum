@@ -27,6 +27,8 @@ github.com/Tarick/naca-items v0.0.2-0.20201124155801-17f39d379b07 h1:txq5rOXiLBI
 github.com/Tarick/naca-items v0.0.2-0.20201124155801-17f39d379b07/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/Tarick/naca-items v0.0.2-0.20201124161007-cec6e105332c h1:DX9/fvksIEbLeOgOAVluwEK6HbBNisCdZoDZ5bH8Q9Q=
 github.com/Tarick/naca-items v0.0.2-0.20201124161007-cec6e105332c/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
+github.com/Tarick/naca-items v0.0.2-0.20201124161630-2f55ca926b4c h1:Z9oEczOTFjEyVKHS13uDNtiEmbsIDj18oTWqh/N9dwo=
+github.com/Tarick/naca-items v0.0.2-0.20201124161630-2f55ca926b4c/go.mod h1:hXq0ZKMdYIlQ8sV0DIRc8ho9V0zW5Qzx/XszqqLMRSE=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/andybalholm/cascadia v1.1.0 h1:BuuO6sSfQNFRu1LppgbD25Hr2vLYW25JvxHs5zzsLTo=
