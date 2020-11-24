@@ -161,14 +161,26 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 		if item.Author != nil {
 			author = item.Author.Name
 		} else {
-			author = "unknown"
+			author = "Not specified"
+		}
+		var content string
+		if item.Content != "" {
+			content = item.Content
+		} else {
+			content = "Not specified"
+		}
+		var description string
+		if item.Description != "" {
+			description = item.Description
+		} else {
+			description = "Not specified"
 		}
 
 		// Publish new item to Items service
 		err = p.itemPublisher.PublishNewItem(publicationUUID,
 			item.Title,
-			item.Description,
-			item.Content,
+			description,
+			content,
 			item.Link,
 			author,
 			dbFeed.LanguageCode,
