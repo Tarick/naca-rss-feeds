@@ -55,8 +55,7 @@ type ItemPublisherClient interface {
 		title string,
 		description string,
 		content string,
-		source string,
-		author string,
+		url string,
 		languageCode string,
 		publishedDate time.Time,
 	) error
@@ -142,10 +141,22 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 	for _, item := range feed.Items {
 		// Skip if such feed (GUID and PubDate) already exist in db as processed item
 		// If Pubdate is different - item will be updated.
+		// If Pubdate is missing - Update date will be used, otherwise skipped.
+		var itemPublished *time.Time
+		if item.PublishedParsed == nil {
+			if item.UpdatedParsed != nil {
+				itemPublished = item.UpdatedParsed
+			} else {
+				p.logger.Error("Item ", item.GUID, " doesn't have set Published or Updated fields, skipping")
+				continue
+			}
+		} else {
+			itemPublished = item.PublishedParsed
+		}
 		processedItem := &entity.ProcessedItem{
 			GUID:            item.GUID,
 			PublicationUUID: dbFeed.PublicationUUID,
-			PublicationDate: *item.PublishedParsed,
+			PublicationDate: *itemPublished,
 		}
 		exists, err := p.repository.ProcessedItemExists(processedItem)
 		if err != nil {
@@ -156,35 +167,15 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 			p.logger.Debug("Item ", item.GUID, "with publish date ", item.Published, " already exist, skipping processing")
 			continue
 		}
-		// Create validate for item?
-		var author string
-		if item.Author != nil {
-			author = item.Author.Name
-		} else {
-			author = "Not specified"
-		}
-		var content string
-		if item.Content != "" {
-			content = item.Content
-		} else {
-			content = "Not specified"
-		}
-		var description string
-		if item.Description != "" {
-			description = item.Description
-		} else {
-			description = "Not specified"
-		}
-
 		// Publish new item to Items service
-		err = p.itemPublisher.PublishNewItem(publicationUUID,
+		err = p.itemPublisher.PublishNewItem(
+			publicationUUID,
 			item.Title,
-			description,
-			content,
+			item.Description,
+			item.Content,
 			item.Link,
-			author,
 			dbFeed.LanguageCode,
-			item.PublishedParsed.In(time.UTC))
+			itemPublished.In(time.UTC))
 
 		if err != nil {
 			p.logger.Error("failed to publish new item ", item.GUID, " of publication ", dbFeed.PublicationUUID, " with error ", err)

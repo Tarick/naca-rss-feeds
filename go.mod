@@ -4,10 +4,11 @@ go 1.15
 
 replace github.com/Tarick/naca-rss-feeds => ./
 
-// replace github.com/Tarick/naca-items => ../naca-items
+replace github.com/Tarick/naca-items => ../naca-items
 
 require (
-	github.com/Tarick/naca-items v0.0.2-0.20201124162939-d1386efcba71
+	github.com/Tarick/naca-items v0.0.2-0.20201201152504-a95145794d67
+	// github.com/Tarick/naca-items v0.0.2-0.20201124162939-d1386efcba71
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-chi/cors v1.1.1
