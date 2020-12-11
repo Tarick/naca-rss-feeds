@@ -7,11 +7,16 @@
             "label": "Build RSS Feeds Worker",
             "type": "shell",
             "command": "go",
-            "args": ["build", "-o", "build/feeds-worker", "./cmd/feeds-worker"],
+            "args": [
+                "build",
+                "-o",
+                "build/feeds-worker",
+                "./cmd/feeds-worker"
+            ],
             "group": "build",
             "presentation": {
                 "reveal": "always"
-              },
+            },
             "problemMatcher": [
                 "$go"
             ]
@@ -20,13 +25,26 @@
             "label": "Build RSS API",
             "type": "shell",
             "command": "go",
-            "args": ["build", "-o", "build/feeds-api", "./cmd/feeds-api"],
+            "args": [
+                "build",
+                "-o",
+                "build/feeds-api",
+                "./cmd/feeds-api"
+            ],
             "group": "build",
             "presentation": {
                 "reveal": "always"
-              },
+            },
             "problemMatcher": [
                 "$go"
+            ]
+        },
+        {
+            "label": "bridge-to-kubernetes.service",
+            "type": "bridge-to-kubernetes.service",
+            "service": "rss-feeds-api",
+            "ports": [
+                8080
             ]
         }
     ]

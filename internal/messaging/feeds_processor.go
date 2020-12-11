@@ -19,14 +19,13 @@ type Logger interface {
 	Info(args ...interface{})
 	Warn(args ...interface{})
 	Error(args ...interface{})
-	Fatal(args ...interface{})
 }
 
 // ErrNotModified is used for Etag and Last-Modified handling
 var ErrNotModified = errors.New("not modified")
 
-// RssFeed is extended feed with etag and lastmodified
-type RssFeed struct {
+// RSSFeed is extended feed with etag and lastmodified
+type RSSFeed struct {
 	*gofeed.Feed
 
 	ETag         string
@@ -139,9 +138,6 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 	}
 	p.logger.Info("Feed ", dbFeed.URL, " returned ", len(feed.Items), " items")
 	for _, item := range feed.Items {
-		// Skip if such feed (GUID and PubDate) already exist in db as processed item
-		// If Pubdate is different - item will be updated.
-		// If Pubdate is missing - Update date will be used, otherwise skipped.
 		var itemPublished *time.Time
 		if item.PublishedParsed == nil {
 			if item.UpdatedParsed != nil {
@@ -163,6 +159,9 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 			p.logger.Error("Couldn't process item with GUID ", processedItem.GUID, "error: ", err)
 			continue
 		}
+		// Skip if such feed (GUID and PubDate) already exist in db as processed item
+		// If Pubdate is different - item will be updated.
+		// If Pubdate is missing - Update date will be used, otherwise skipped.
 		if exists {
 			p.logger.Debug("Item ", item.GUID, "with publish date ", item.Published, " already exist, skipping processing")
 			continue
@@ -199,7 +198,7 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 
 // readFeedFromURL fetches feed from url and returns parsed feed
 // Uses Etag and Last-Modified to verify if feed didn't change
-func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModified time.Time) (feed *RssFeed, err error) {
+func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModified time.Time) (feed *RSSFeed, err error) {
 	var client = http.Client{}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -241,7 +240,7 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 		}
 	}
 
-	feed = &RssFeed{}
+	feed = &RSSFeed{}
 
 	feedBody, err := gofeed.NewParser().Parse(resp.Body)
 	if err != nil {

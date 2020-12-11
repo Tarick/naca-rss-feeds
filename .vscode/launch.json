@@ -11,13 +11,29 @@
     ],
     "configurations": [
         {
+            "name": "Launch Feeds API with Kubernetes",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/feeds-api",
+            "env": {},
+            "args": [
+                "--config",
+                "${workspaceFolder}/config/config-api.yaml"
+            ],
+            "preLaunchTask": "bridge-to-kubernetes.service"
+        },
+        {
             "name": "Launch Feeds Worker for feeds update",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/feeds-worker",
             "env": {},
-            "args": ["--config", "${workspaceFolder}/config/config-worker.yaml"]
+            "args": [
+                "--config",
+                "${workspaceFolder}/config/config-worker.yaml"
+            ]
         },
         {
             "name": "Launch Feeds API",
@@ -26,7 +42,10 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/feeds-api",
             "env": {},
-            "args": ["--config", "${workspaceFolder}/config/config-api.yaml"]
+            "args": [
+                "--config",
+                "${workspaceFolder}/config/config-api.yaml"
+            ]
         }
     ]
 }
