@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -34,11 +35,11 @@ type RSSFeedsUpdateProducer interface {
 
 // FeedsRepository defines repository methods used to manage feeds
 type FeedsRepository interface {
-	Create(*entity.Feed) error
-	Update(*entity.Feed) error
-	Delete(uuid.UUID) error
-	GetAll() ([]entity.Feed, error)
-	GetByPublicationUUID(uuid.UUID) (*entity.Feed, error)
+	Create(context.Context, *entity.Feed) error
+	Update(context.Context, *entity.Feed) error
+	Delete(context.Context, uuid.UUID) error
+	GetAll(context.Context) ([]entity.Feed, error)
+	GetByPublicationUUID(context.Context, uuid.UUID) (*entity.Feed, error)
 }
 
 // Config defines webserver configuration

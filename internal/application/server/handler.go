@@ -60,7 +60,7 @@ func (s *Server) feedCtx(next http.Handler) http.Handler {
 			ErrInvalidRequest(fmt.Errorf("Wrong UUID format: %w", err)).Render(w, r)
 			return
 		}
-		dbFeed, err := s.repository.GetByPublicationUUID(feedPublicationUUID)
+		dbFeed, err := s.repository.GetByPublicationUUID(r.Context(), feedPublicationUUID)
 		if err != nil {
 			ErrNotFound.Render(w, r)
 			return
@@ -128,7 +128,7 @@ func (s *Server) createFeed(w http.ResponseWriter, r *http.Request) {
 		LanguageCode:    body.LanguageCode,
 	}
 	// TODO: create validator on record, that already exist
-	if err := s.repository.Create(f); err != nil {
+	if err := s.repository.Create(r.Context(), f); err != nil {
 		ErrInternal(err).Render(w, r)
 		return
 	}
@@ -151,7 +151,7 @@ func (s *Server) updateFeed(w http.ResponseWriter, r *http.Request) {
 	dbFeed.URL = body.URL
 	dbFeed.LanguageCode = body.LanguageCode
 	dbFeed.PublicationUUID = body.PublicationUUID
-	if err := s.repository.Update(dbFeed); err != nil {
+	if err := s.repository.Update(r.Context(), dbFeed); err != nil {
 		ErrInternal(err).Render(w, r)
 		return
 	}
@@ -160,7 +160,7 @@ func (s *Server) updateFeed(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteFeed(w http.ResponseWriter, r *http.Request) {
 	dbFeed := r.Context().Value("feed").(*entity.Feed)
-	if err := s.repository.Delete(dbFeed.PublicationUUID); err != nil {
+	if err := s.repository.Delete(r.Context(), dbFeed.PublicationUUID); err != nil {
 		ErrInternal(err).Render(w, r)
 		return
 	}
@@ -190,7 +190,7 @@ func (s *Server) refreshAllFeeds(w http.ResponseWriter, r *http.Request) {
 // Returns feeds entries
 // TODO: filtering
 func (s *Server) getFeeds(w http.ResponseWriter, r *http.Request) {
-	dbFeeds, err := s.repository.GetAll()
+	dbFeeds, err := s.repository.GetAll(r.Context())
 	if err != nil {
 		s.logger.Error("Failure reading feeds from database: ", err)
 		ErrInternal(fmt.Errorf("Failure reading feeds from database")).Render(w, r)

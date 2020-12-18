@@ -68,18 +68,18 @@ func New(databaseConfig *Config, logger pgx.Logger) (*FeedsRepositoryImpl, error
 	return &FeedsRepositoryImpl{pool: pool}, nil
 }
 
-func (repository *FeedsRepositoryImpl) Create(f *entity.Feed) error {
-	_, err := repository.pool.Exec(context.Background(), "insert into feeds (publication_uuid, url, language_code) values ($1, $2, $3)", f.PublicationUUID, f.URL, f.LanguageCode)
+func (repository *FeedsRepositoryImpl) Create(ctx context.Context, f *entity.Feed) error {
+	_, err := repository.pool.Exec(ctx, "insert into feeds (publication_uuid, url, language_code) values ($1, $2, $3)", f.PublicationUUID, f.URL, f.LanguageCode)
 	return err
 }
 
-func (feedRepo *FeedsRepositoryImpl) Update(f *entity.Feed) error {
-	_, err := feedRepo.pool.Exec(context.Background(), "update feeds set url=$1, language_code=$2 where publication_uuid=$3", f.URL, f.LanguageCode, f.PublicationUUID)
+func (feedRepo *FeedsRepositoryImpl) Update(ctx context.Context, f *entity.Feed) error {
+	_, err := feedRepo.pool.Exec(ctx, "update feeds set url=$1, language_code=$2 where publication_uuid=$3", f.URL, f.LanguageCode, f.PublicationUUID)
 	return err
 }
 
-func (feedRepo *FeedsRepositoryImpl) Delete(publicationUUID uuid.UUID) error {
-	result, err := feedRepo.pool.Exec(context.Background(), "delete from feeds where publication_uuid=$1", publicationUUID)
+func (feedRepo *FeedsRepositoryImpl) Delete(ctx context.Context, publicationUUID uuid.UUID) error {
+	result, err := feedRepo.pool.Exec(ctx, "delete from feeds where publication_uuid=$1", publicationUUID)
 	if err != nil {
 		return err
 	}
@@ -89,9 +89,9 @@ func (feedRepo *FeedsRepositoryImpl) Delete(publicationUUID uuid.UUID) error {
 	return err
 }
 
-func (feedRepo *FeedsRepositoryImpl) GetByPublicationUUID(publicationUUID uuid.UUID) (*entity.Feed, error) {
+func (feedRepo *FeedsRepositoryImpl) GetByPublicationUUID(ctx context.Context, publicationUUID uuid.UUID) (*entity.Feed, error) {
 	f := &entity.Feed{}
-	err := feedRepo.pool.QueryRow(context.Background(), "select publication_uuid, url, language_code from feeds where publication_uuid=$1", publicationUUID).Scan(&f.PublicationUUID, &f.URL, &f.LanguageCode)
+	err := feedRepo.pool.QueryRow(ctx, "select publication_uuid, url, language_code from feeds where publication_uuid=$1", publicationUUID).Scan(&f.PublicationUUID, &f.URL, &f.LanguageCode)
 	if err != nil && err == pgx.ErrNoRows {
 		return nil, nil
 	}
@@ -100,9 +100,9 @@ func (feedRepo *FeedsRepositoryImpl) GetByPublicationUUID(publicationUUID uuid.U
 	}
 	return f, nil
 }
-func (feedRepo *FeedsRepositoryImpl) GetFeedHTTPMetadataByPublicationUUID(publicationUUID uuid.UUID) (*entity.FeedHTTPMetadata, error) {
+func (feedRepo *FeedsRepositoryImpl) GetFeedHTTPMetadataByPublicationUUID(ctx context.Context, publicationUUID uuid.UUID) (*entity.FeedHTTPMetadata, error) {
 	m := &entity.FeedHTTPMetadata{}
-	err := feedRepo.pool.QueryRow(context.Background(), "SELECT publication_uuid, COALESCE(etag, 'noetag'), COALESCE(last_modified,$2) FROM feeds WHERE publication_uuid=$1",
+	err := feedRepo.pool.QueryRow(ctx, "SELECT publication_uuid, COALESCE(etag, 'noetag'), COALESCE(last_modified,$2) FROM feeds WHERE publication_uuid=$1",
 		publicationUUID, time.Time{}).
 		Scan(&m.PublicationUUID, &m.ETag, &m.LastModified)
 	if err != nil && err == pgx.ErrNoRows {
@@ -113,13 +113,13 @@ func (feedRepo *FeedsRepositoryImpl) GetFeedHTTPMetadataByPublicationUUID(public
 	}
 	return m, nil
 }
-func (feedRepo *FeedsRepositoryImpl) SaveFeedHTTPMetadata(m *entity.FeedHTTPMetadata) error {
-	_, err := feedRepo.pool.Exec(context.Background(), "update feeds set etag=$1, last_modified=$2 where publication_uuid=$3", m.ETag, m.LastModified, m.PublicationUUID)
+func (feedRepo *FeedsRepositoryImpl) SaveFeedHTTPMetadata(ctx context.Context, m *entity.FeedHTTPMetadata) error {
+	_, err := feedRepo.pool.Exec(ctx, "update feeds set etag=$1, last_modified=$2 where publication_uuid=$3", m.ETag, m.LastModified, m.PublicationUUID)
 	return err
 }
 
-func (feedRepo *FeedsRepositoryImpl) GetAll() ([]entity.Feed, error) {
-	rows, err := feedRepo.pool.Query(context.Background(), "select publication_uuid, url, language_code from feeds")
+func (feedRepo *FeedsRepositoryImpl) GetAll(ctx context.Context) ([]entity.Feed, error) {
+	rows, err := feedRepo.pool.Query(ctx, "select publication_uuid, url, language_code from feeds")
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +139,16 @@ func (feedRepo *FeedsRepositoryImpl) GetAll() ([]entity.Feed, error) {
 	return feeds, nil
 }
 
-func (feedRepo *FeedsRepositoryImpl) SaveProcessedItem(i *entity.ProcessedItem) error {
-	_, err := feedRepo.pool.Exec(context.Background(),
+func (feedRepo *FeedsRepositoryImpl) SaveProcessedItem(ctx context.Context, i *entity.ProcessedItem) error {
+	_, err := feedRepo.pool.Exec(ctx,
 		"INSERT INTO processed_items (guid, feeds_publication_uuid, pubDate) VALUES ($1, $2, $3) ON CONFLICT (guid) DO UPDATE SET pubDate=EXCLUDED.pubDate",
 		i.GUID, i.PublicationUUID, i.PublicationDate)
 	return err
 }
 
-func (feedRepo *FeedsRepositoryImpl) ProcessedItemExists(i *entity.ProcessedItem) (bool, error) {
+func (feedRepo *FeedsRepositoryImpl) ProcessedItemExists(ctx context.Context, i *entity.ProcessedItem) (bool, error) {
 	var exists bool
-	row := feedRepo.pool.QueryRow(context.Background(), "select exists (select 1 from processed_items where (guid=$1 AND feeds_publication_uuid=$2 AND pubDate=$3))",
+	row := feedRepo.pool.QueryRow(ctx, "select exists (select 1 from processed_items where (guid=$1 AND feeds_publication_uuid=$2 AND pubDate=$3))",
 		i.GUID, i.PublicationUUID, i.PublicationDate)
 	if err := row.Scan(&exists); err != nil {
 		return false, err

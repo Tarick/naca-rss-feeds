@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,12 +41,12 @@ type RSSFeedsUpdateProducer interface {
 
 // FeedsRepository defines repository methods
 type FeedsRepository interface {
-	GetAll() ([]entity.Feed, error)
-	GetByPublicationUUID(uuid.UUID) (*entity.Feed, error)
-	GetFeedHTTPMetadataByPublicationUUID(uuid.UUID) (*entity.FeedHTTPMetadata, error)
-	SaveFeedHTTPMetadata(*entity.FeedHTTPMetadata) error
-	SaveProcessedItem(*entity.ProcessedItem) error
-	ProcessedItemExists(*entity.ProcessedItem) (bool, error)
+	GetAll(context.Context) ([]entity.Feed, error)
+	GetByPublicationUUID(context.Context, uuid.UUID) (*entity.Feed, error)
+	GetFeedHTTPMetadataByPublicationUUID(context.Context, uuid.UUID) (*entity.FeedHTTPMetadata, error)
+	SaveFeedHTTPMetadata(context.Context, *entity.FeedHTTPMetadata) error
+	SaveProcessedItem(context.Context, *entity.ProcessedItem) error
+	ProcessedItemExists(context.Context, *entity.ProcessedItem) (bool, error)
 }
 
 type ItemPublisherClient interface {
@@ -100,10 +101,10 @@ func (p *rssFeedsProcessor) Process(data []byte) error {
 			p.logger.Error("Failure unmarshalling FeedsUpdateOneMsg content: ", err)
 			return err
 		}
-		return p.refreshFeed(msgContent.PublicationUUID)
+		return p.refreshFeed(context.Background(), msgContent.PublicationUUID)
 	case FeedsUpdateAll:
 		// No body here, just refresh
-		return p.refreshAllFeeds()
+		return p.refreshAllFeeds(context.Background())
 	default:
 		p.logger.Error("Undefined message type: ", message.Type)
 		// TODO: implement common errors
@@ -112,15 +113,15 @@ func (p *rssFeedsProcessor) Process(data []byte) error {
 }
 
 // refreshFeed refreshes single feed
-func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
-	dbFeed, err := p.repository.GetByPublicationUUID(publicationUUID)
+func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uuid.UUID) error {
+	dbFeed, err := p.repository.GetByPublicationUUID(ctx, publicationUUID)
 	if err != nil {
 		return fmt.Errorf("couldn't get feed item from repository, %w", err)
 	}
 	if dbFeed == nil {
 		return fmt.Errorf("repository doesn't have items with this publication uuid %v", publicationUUID)
 	}
-	dbFeedMetadata, err := p.repository.GetFeedHTTPMetadataByPublicationUUID(publicationUUID)
+	dbFeedMetadata, err := p.repository.GetFeedHTTPMetadataByPublicationUUID(ctx, publicationUUID)
 	if err != nil {
 		return fmt.Errorf("couldn't get feed HTTP metadata from repository, %w", err)
 	}
@@ -154,7 +155,7 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 			PublicationUUID: dbFeed.PublicationUUID,
 			PublicationDate: *itemPublished,
 		}
-		exists, err := p.repository.ProcessedItemExists(processedItem)
+		exists, err := p.repository.ProcessedItemExists(ctx, processedItem)
 		if err != nil {
 			p.logger.Error("Couldn't process item with GUID ", processedItem.GUID, "error: ", err)
 			continue
@@ -181,7 +182,7 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 			continue
 		}
 		p.logger.Info("Pushed item ", item.GUID, " to process")
-		if err := p.repository.SaveProcessedItem(processedItem); err != nil {
+		if err := p.repository.SaveProcessedItem(ctx, processedItem); err != nil {
 			p.logger.Error("Failure saving new processed item: ", err)
 			continue
 		}
@@ -189,7 +190,7 @@ func (p *rssFeedsProcessor) refreshFeed(publicationUUID uuid.UUID) error {
 	// Update Feed
 	dbFeedMetadata.ETag = feed.ETag
 	dbFeedMetadata.LastModified = feed.LastModified
-	if err = p.repository.SaveFeedHTTPMetadata(dbFeedMetadata); err != nil {
+	if err = p.repository.SaveFeedHTTPMetadata(ctx, dbFeedMetadata); err != nil {
 		return fmt.Errorf("couldn't save feed HTTP metadata, %w", err)
 	}
 	p.logger.Info("Successfully updated feed ", dbFeed.PublicationUUID)
@@ -266,8 +267,8 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 
 // Refresh all feeds.
 // Gets all feeds ids from db and pushes per-feed messages to process.
-func (p *rssFeedsProcessor) refreshAllFeeds() error {
-	dbFeeds, err := p.repository.GetAll()
+func (p *rssFeedsProcessor) refreshAllFeeds(ctx context.Context) error {
+	dbFeeds, err := p.repository.GetAll(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get feeds from repository, %w", err)
 	}
