@@ -3,6 +3,8 @@ RUN apk add --no-cache git && \
     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -v -tags 'netgo static_build' -ldflags "-extldflags=-static -w -s " github.com/jackc/tern
 
 FROM alpine:3.12
+# Needed curl for calling any sidecar endpoints (e.g. Istio)
+RUN apk add --no-cache curl
 RUN adduser -u 1000 -h /opt/app -D app 
 WORKDIR /opt/app
 USER app

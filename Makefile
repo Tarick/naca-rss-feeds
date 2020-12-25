@@ -2,7 +2,7 @@ SHELL:=/bin/bash
 
 .DEFAULT_GOAL := help
 # put here commands, that have the same name as files in dir
-.PHONY: run clean generate build docker_build docker_push build-and-deploy
+.PHONY: run clean generate build docker_build docker_push build-and-deploy build-migrations-image
 
 BUILD_TAG=$(shell git describe --tags --abbrev=0 HEAD)
 BUILD_HASH=$(shell git rev-parse --short HEAD)
