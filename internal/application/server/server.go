@@ -40,6 +40,7 @@ type FeedsRepository interface {
 	Delete(context.Context, uuid.UUID) error
 	GetAll(context.Context) ([]entity.Feed, error)
 	GetByPublicationUUID(context.Context, uuid.UUID) (*entity.Feed, error)
+	Healthcheck(context.Context) error
 }
 
 // Config defines webserver configuration
@@ -80,6 +81,12 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 	// Healthcheck could be moved back to middleware in case of auth meddling
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
+		if err := s.repository.Healthcheck(r.Context()); err != nil {
+			s.logger.Error("Healthcheck: repository check failed with: ", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Repository is unailable"))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("."))
 	},

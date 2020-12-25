@@ -158,3 +158,16 @@ func (feedRepo *FeedsRepositoryImpl) ProcessedItemExists(ctx context.Context, i 
 	}
 	return false, nil
 }
+
+// Healthcheck is needed for application healtchecks
+func (feedRepo *FeedsRepositoryImpl) Healthcheck(ctx context.Context) error {
+	var exists bool
+	row := feedRepo.pool.QueryRow(ctx, "select exists (select 1 from feeds limit 1)")
+	if err := row.Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	return fmt.Errorf("failure checking access to 'feeds' table")
+}
