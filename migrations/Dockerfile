@@ -1,4 +1,4 @@
-FROM golang:1.15.5-alpine3.12 as build
+FROM golang:1.15.6-alpine3.12 as build
 RUN apk add --no-cache git && \
     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -v -tags 'netgo static_build' -ldflags "-extldflags=-static -w -s " github.com/jackc/tern
 

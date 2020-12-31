@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Tarick/naca-rss-feeds/internal/entity"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -91,6 +92,9 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 		w.Write([]byte("."))
 	},
 	)
+	// Prometheus metrics
+	r.Handle("/metrics", promhttp.Handler())
+
 	// Create a route along /doc that will serve contents from
 	// the ./swaggerui directory.
 	workDir, _ := os.Getwd()

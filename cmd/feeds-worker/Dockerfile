@@ -1,4 +1,4 @@
-FROM golang:1.15.5-alpine as build
+FROM golang:1.15.6-alpine as build
 RUN apk --no-cache add tzdata git
 WORKDIR /app
 COPY go.mod .
