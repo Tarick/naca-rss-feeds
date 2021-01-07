@@ -53,6 +53,8 @@ generate-api:
 build-worker-image:
 	@echo "[INFO] Building worker container image"
 	buildctl build --frontend dockerfile.v0 --opt build-arg:BUILD_VERSION=${BUILD_VERSION} \
+	--export-cache type=local,dest=/var/tmp/buildkitdcache \
+	--import-cache type=local,src=/var/tmp/buildkitdcache \
 	--local context=. --local dockerfile=cmd/feeds-worker  \
 	--output type=image,\"name=${CONTAINER_IMAGE_REGISTRY}/rss-feeds-worker:${BUILD_BRANCH}-${BUILD_HASH},${CONTAINER_IMAGE_REGISTRY}/rss-feeds-worker:${BUILD_VERSION}\"
 	@echo "[INFO] Image built successfully"
@@ -64,6 +66,8 @@ generate-worker:
 build-api-image:
 	@echo "[INFO] Building API container image"
 	buildctl build --frontend dockerfile.v0 --opt build-arg:BUILD_VERSION=${BUILD_VERSION} \
+	--export-cache type=local,dest=/var/tmp/buildkitdcache \
+	--import-cache type=local,src=/var/tmp/buildkitdcache \
 	--local context=. --local dockerfile=cmd/feeds-api  \
 	--output type=image,\"name=${CONTAINER_IMAGE_REGISTRY}/rss-feeds-api:${BUILD_BRANCH}-${BUILD_HASH},${CONTAINER_IMAGE_REGISTRY}/rss-feeds-api:${BUILD_VERSION}\"
 	@echo "[INFO] Image built successfully"
@@ -71,6 +75,8 @@ build-api-image:
 build-migrations-image:
 	@echo "[INFO] Building API container image"
 	buildctl build --frontend dockerfile.v0 --opt build-arg:BUILD_VERSION=${BUILD_VERSION} \
+	--export-cache type=local,dest=/var/tmp/buildkitdcache \
+	--import-cache type=local,src=/var/tmp/buildkitdcache \
 	--local context=. --local dockerfile=migrations  \
 	--output type=image,\"name=${CONTAINER_IMAGE_REGISTRY}/rss-feeds-sql-migrations:${BUILD_BRANCH}-${BUILD_HASH},${CONTAINER_IMAGE_REGISTRY}/rss-feeds-sql-migrations:${BUILD_VERSION}\"
 	@echo "[INFO] Image built successfully"
