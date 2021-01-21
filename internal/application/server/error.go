@@ -31,7 +31,7 @@ func (e *ErrResponse) Render(w http.ResponseWriter, r *http.Request) {
 // ErrInvalidRequest returns failure due to incorrect request parameters or methods
 func ErrInvalidRequest(err error) *ErrResponse {
 	return &ErrResponse{
-		HTTPStatusCode: 400,
+		HTTPStatusCode: http.StatusBadRequest,
 		Body: ErrResponseBody{
 			StatusText: "Invalid request.",
 			ErrorText:  err.Error(),
@@ -42,7 +42,7 @@ func ErrInvalidRequest(err error) *ErrResponse {
 // ErrRender returns error for rendering
 func ErrRender(err error) *ErrResponse {
 	return &ErrResponse{
-		HTTPStatusCode: 422,
+		HTTPStatusCode: http.StatusUnprocessableEntity,
 		Body: ErrResponseBody{
 			StatusText: "Error rendering response.",
 			ErrorText:  err.Error(),
@@ -53,7 +53,7 @@ func ErrRender(err error) *ErrResponse {
 // ErrInternal returns internal server error
 func ErrInternal(err error) *ErrResponse {
 	return &ErrResponse{
-		HTTPStatusCode: 500,
+		HTTPStatusCode: http.StatusInternalServerError,
 		Body: ErrResponseBody{
 			StatusText: "Internal Server Error.",
 			ErrorText:  err.Error(),
@@ -63,7 +63,7 @@ func ErrInternal(err error) *ErrResponse {
 
 // ErrNotFound is 404
 var ErrNotFound = &ErrResponse{
-	HTTPStatusCode: 404,
+	HTTPStatusCode: http.StatusNotFound,
 	Body: ErrResponseBody{
 		StatusText: "Resource not found.",
 	},

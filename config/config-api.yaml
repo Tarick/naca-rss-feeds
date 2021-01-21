@@ -16,6 +16,14 @@ logging:
   output_paths: ["stdout"]
   error_output_paths: ["stderr"]
 
+tracing:
+  service_name: "naca-rss-feeds-api"
+  sampler_rate: 1
+  sampler_type: "const"
+  agent_address: ""
+  collector_endpoint: "http://jaeger-collector.jaeger:14268/api/traces"
+  log_spans: true
+
 database:
   hostname: postgresql
   port: 5432

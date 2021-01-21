@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Tarick/naca-rss-feeds/internal/entity"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-chi/chi"
@@ -17,31 +15,13 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/go-chi/stampede"
-	"github.com/gofrs/uuid"
 )
 
-// Server defines HTTP application
+// Server defines HTTP server
 type Server struct {
 	httpServer *http.Server
+	handler    *Handler
 	logger     Logger
-	repository FeedsRepository
-	producer   RSSFeedsUpdateProducer
-}
-
-// RSSFeedsUpdateProducer provides methods to call update (refresh news from) RSS Feed via messaging subsystem
-type RSSFeedsUpdateProducer interface {
-	SendUpdateOne(uuid.UUID) error
-	SendUpdateAll() error
-}
-
-// FeedsRepository defines repository methods used to manage feeds
-type FeedsRepository interface {
-	Create(context.Context, *entity.Feed) error
-	Update(context.Context, *entity.Feed) error
-	Delete(context.Context, uuid.UUID) error
-	GetAll(context.Context) ([]entity.Feed, error)
-	GetByPublicationUUID(context.Context, uuid.UUID) (*entity.Feed, error)
-	Healthcheck(context.Context) error
 }
 
 // Config defines webserver configuration
@@ -52,13 +32,12 @@ type Config struct {
 
 // New creates new server configuration and configurates middleware
 // TODO: move routes to handler file
-func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, messageProducer RSSFeedsUpdateProducer) *Server {
+func New(serverConfig Config, logger Logger, handler *Handler) *Server {
 	r := chi.NewRouter()
 	s := &Server{
 		httpServer: &http.Server{Addr: serverConfig.Address, Handler: r},
 		logger:     logger,
-		repository: feedRepository,
-		producer:   messageProducer,
+		handler:    handler,
 	}
 	// Specify here only shared middlewares
 	r.Use(middleware.Recoverer)
@@ -67,18 +46,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 		r.Use(middleware.Timeout(time.Duration(serverConfig.RequestTimeout) * time.Second))
 		// Prometheus metrics
 		r.Handle("/metrics", promhttp.Handler())
-		r.Get("/healthz", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/plain")
-			if err := s.repository.Healthcheck(r.Context()); err != nil {
-				s.logger.Error("Healthcheck: repository check failed with: ", err)
-				w.WriteHeader(http.StatusServiceUnavailable)
-				w.Write([]byte("Repository is unailable"))
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("."))
-		},
-		))
+		r.Get("/healthz", http.HandlerFunc(handler.healthCheck))
 	})
 	r.Group(func(r chi.Router) {
 		// Basic CORS to allow API calls from browsers (Swagger-UI)
@@ -122,7 +90,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 			//       type: array
 			//       items:
 			//         $ref: "#/definitions/FeedResponseBody"
-			r.With(cached).Get("/", s.getFeeds)
+			r.With(cached).Get("/", handler.getFeeds)
 
 			// swagger:operation  POST /feeds createFeed
 			// Creates feed using supplied params from body
@@ -134,10 +102,10 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 			//      $ref: "#/responses/FeedResponse"
 			//    default:
 			//      $ref: "#/responses/ErrResponse"
-			r.Post("/", s.createFeed)
+			r.Post("/", handler.createFeed)
 
 			r.Route("/{publication_uuid}", func(r chi.Router) {
-				r.Use(s.feedCtx) // handle publication_uuid
+				r.Use(handler.feedCtx) // handle publication_uuid
 
 				// swagger:operation GET /feeds/{publication_uuid} getFeed
 				// Gets single feed using its publication_uuid as parameter
@@ -153,7 +121,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 				//      $ref: "#/responses/FeedResponse"
 				//    default:
 				//      $ref: "#/responses/ErrResponse"
-				r.Get("/", s.getFeed)
+				r.Get("/", handler.getFeed)
 
 				// swagger:operation PUT /feeds/{publication_uuid} updateFeed
 				// Modifies feed using supplied params from body
@@ -170,7 +138,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 				//      $ref: "#/responses/FeedResponse"
 				//    default:
 				//      $ref: "#/responses/ErrResponse"
-				r.Put("/", s.updateFeed)
+				r.Put("/", handler.updateFeed)
 
 				// swagger:operation DELETE /feeds/{publication_uuid} deleteFeed
 				// Deletes feed using its publication_uuid
@@ -186,7 +154,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 				//    description: Send success
 				//  default:
 				//    $ref: "#/responses/ErrResponse"
-				r.Delete("/", s.deleteFeed)
+				r.Delete("/", handler.deleteFeed)
 			})
 		})
 		r.Route("/refreshFeeds", func(r chi.Router) {
@@ -204,7 +172,7 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 			//      description: Error payload
 			//      schema:
 			//        $ref: "#/responses/ErrResponse"
-			r.With(cachedAll).Put("/", s.refreshAllFeeds)
+			r.With(cachedAll).Put("/", handler.refreshAllFeeds)
 			// swagger:operation PUT /refreshFeeds/{publication_uuid} refreshFeed
 			// Triggers refresh (pull of content) for single feeds
 			// ---
@@ -220,8 +188,8 @@ func New(serverConfig Config, logger Logger, feedRepository FeedsRepository, mes
 			//    default:
 			//      $ref: "#/responses/ErrResponse"
 			r.Route("/{publication_uuid}", func(r chi.Router) {
-				r.Use(s.feedCtx)                          // handle publication_uuid
-				r.With(cachedOne).Put("/", s.refreshFeed) // PUT /refreshFeeds/sfsd-fds-fsd-fsd
+				r.Use(handler.feedCtx)                          // handle publication_uuid
+				r.With(cachedOne).Put("/", handler.refreshFeed) // PUT /refreshFeeds/sfsd-fds-fsd-fsd
 			})
 		})
 	})

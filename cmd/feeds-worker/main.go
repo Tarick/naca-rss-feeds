@@ -11,6 +11,7 @@ import (
 	"github.com/Tarick/naca-rss-feeds/internal/messaging/nsqclient/consumer"
 	"github.com/Tarick/naca-rss-feeds/internal/messaging/nsqclient/producer"
 	"github.com/Tarick/naca-rss-feeds/internal/repository/postgresql"
+	"github.com/Tarick/naca-rss-feeds/internal/tracing"
 	"github.com/Tarick/naca-rss-feeds/internal/version"
 
 	"github.com/spf13/cobra"
@@ -50,6 +51,15 @@ func main() {
 			logger := zaplogger.New(logCfg).Sugar()
 			defer logger.Sync()
 
+			// Init tracing
+			tracingCfg := tracing.Config{}
+			if err := viper.UnmarshalKey("tracing", &tracingCfg); err != nil {
+				fmt.Println("Failure reading 'tracing' configuration:", err)
+				os.Exit(1)
+			}
+			tracer, tracerCloser := tracing.New(tracingCfg)
+			defer tracerCloser.Close()
+
 			// Create db configuration
 			databaseViperConfig := viper.Sub("database")
 			dbCfg := &postgresql.Config{}
@@ -58,7 +68,7 @@ func main() {
 				os.Exit(1)
 			}
 			// Open db
-			db, err := postgresql.New(dbCfg, postgresql.NewZapLogger(logger.Desugar()))
+			db, err := postgresql.New(dbCfg, postgresql.NewZapLogger(logger.Desugar()), tracer)
 			if err != nil {
 				fmt.Println("FATAL: failure creating database connection, ", err)
 				os.Exit(1)
@@ -76,7 +86,7 @@ func main() {
 				fmt.Println("FATAL: failure initialising NSQ producer, ", err)
 				os.Exit(1)
 			}
-			rssFeedsUpdateProducer := messaging.NewFeedsUpdateProducer(messageProducer)
+			rssFeedsUpdateProducer := messaging.NewFeedsUpdateProducer(messageProducer, tracer)
 
 			consumeViperConfig := viper.Sub("consume")
 			consumeCfg := &consumer.MessageConsumerConfig{}
@@ -99,7 +109,7 @@ func main() {
 				os.Exit(1)
 			}
 			// Construct consumer with message handler
-			rssFeedsProcessor := messaging.NewRSSFeedsProcessor(db, rssFeedsUpdateProducer, itemPublisherClient, logger)
+			rssFeedsProcessor := messaging.NewRSSFeedsProcessor(db, rssFeedsUpdateProducer, itemPublisherClient, logger, tracer)
 			consumer, err := consumer.New(consumeCfg, rssFeedsProcessor, logger)
 			if err != nil {
 				fmt.Println("FATAL: consumer creation failed, ", err)

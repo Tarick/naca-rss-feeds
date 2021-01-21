@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/Tarick/naca-rss-feeds/internal/entity"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	otLog "github.com/opentracing/opentracing-go/log"
 
 	"github.com/gofrs/uuid"
 
@@ -35,8 +38,8 @@ type RSSFeed struct {
 
 // RSSFeedsUpdateProducer provides methods to call update (refresh news from) RSS Feed via messaging subsystem
 type RSSFeedsUpdateProducer interface {
-	SendUpdateOne(uuid.UUID) error
-	SendUpdateAll() error
+	SendUpdateOne(context.Context, uuid.UUID) error
+	SendUpdateAll(context.Context) error
 }
 
 // FeedsRepository defines repository methods
@@ -67,11 +70,12 @@ type rssFeedsProcessor struct {
 	feedsUpdater        RSSFeedsUpdateProducer
 	itemPublisher       ItemPublisherClient
 	logger              Logger
+	tracer              opentracing.Tracer
 	GMTTimeZoneLocation *time.Location
 }
 
 // NewRSSFeedsProcessor creates processor for messaging feeds operations
-func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFeedsUpdateProducer, itemPublisherClient ItemPublisherClient, logger Logger) *rssFeedsProcessor {
+func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFeedsUpdateProducer, itemPublisherClient ItemPublisherClient, logger Logger, tracer opentracing.Tracer) *rssFeedsProcessor {
 	GMTTimeZoneLocation, err := time.LoadLocation("GMT")
 	if err != nil {
 		panic(err)
@@ -81,6 +85,7 @@ func NewRSSFeedsProcessor(repository FeedsRepository, feedsUpdateProducer RSSFee
 		feedsUpdateProducer,
 		itemPublisherClient,
 		logger,
+		tracer,
 		GMTTimeZoneLocation,
 	}
 }
@@ -94,19 +99,35 @@ func (p *rssFeedsProcessor) Process(data []byte) error {
 	if err := json.Unmarshal(data, &message); err != nil {
 		return err
 	}
+	// Setup tracing span
+	messageSpanContext, err := p.tracer.Extract(opentracing.TextMap, opentracing.TextMapCarrier(message.Metadata))
+	if err != nil {
+		p.logger.Debug("No tracing information in message metadata: ", err)
+	}
+	span := p.tracer.StartSpan("process-message", opentracing.FollowsFrom(messageSpanContext))
+	defer span.Finish()
+	ext.Component.Set(span, "rssFeedsProcessor")
+	ctx := opentracing.ContextWithSpan(context.Background(), span)
+
 	switch message.Type {
 	case FeedsUpdateOne:
 		var msgContent FeedsUpdateOneMsg
 		if err := json.Unmarshal(msg, &msgContent); err != nil {
 			p.logger.Error("Failure unmarshalling FeedsUpdateOneMsg content: ", err)
+			span.LogFields(
+				otLog.Error(err),
+			)
 			return err
 		}
-		return p.refreshFeed(context.Background(), msgContent.PublicationUUID)
+		return p.refreshFeed(ctx, msgContent.PublicationUUID)
 	case FeedsUpdateAll:
 		// No body here, just refresh
-		return p.refreshAllFeeds(context.Background())
+		return p.refreshAllFeeds(ctx)
 	default:
 		p.logger.Error("Undefined message type: ", message.Type)
+		span.LogFields(
+			otLog.Error(fmt.Errorf("Underfined message type: %s", message.Type)),
+		)
 		// TODO: implement common errors
 		return fmt.Errorf("Undefined message type: %v", message.Type)
 	}
@@ -114,11 +135,16 @@ func (p *rssFeedsProcessor) Process(data []byte) error {
 
 // refreshFeed refreshes single feed
 func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uuid.UUID) error {
+	span, ctx := p.setupTracingSpan(ctx, "refresh-feed")
+	defer span.Finish()
+	span.SetTag("feed.publicationUUID", publicationUUID)
+
 	dbFeed, err := p.repository.GetByPublicationUUID(ctx, publicationUUID)
 	if err != nil {
 		return fmt.Errorf("couldn't get feed item from repository, %w", err)
 	}
 	if dbFeed == nil {
+		span.LogKV("event", "no feed to refresh")
 		return fmt.Errorf("repository doesn't have items with this publication uuid %v", publicationUUID)
 	}
 	dbFeedMetadata, err := p.repository.GetFeedHTTPMetadataByPublicationUUID(ctx, publicationUUID)
@@ -129,9 +155,10 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 		return fmt.Errorf("repository doesn't have HTTP metadata items with this publication uuid %v", publicationUUID)
 	}
 	p.logger.Debug(fmt.Sprintf("Got feed item from db, %v, with metadata %v", dbFeed, dbFeedMetadata))
-	feed, err := p.readFeedFromURL(dbFeed.URL, dbFeedMetadata.ETag, dbFeedMetadata.LastModified)
+	feed, err := p.readFeedFromURL(ctx, dbFeed.URL, dbFeedMetadata.ETag, dbFeedMetadata.LastModified)
 	if err == ErrNotModified {
 		p.logger.Debug("Feed ", dbFeed.URL, " skipped: ", err)
+		span.LogKV("event", "feed update skipped as not modified")
 		return nil
 	}
 	if err != nil {
@@ -145,6 +172,9 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 				itemPublished = item.UpdatedParsed
 			} else {
 				p.logger.Error("Item ", item.GUID, " doesn't have set Published or Updated fields, skipping")
+				span.LogFields(
+					otLog.Error(err),
+				)
 				continue
 			}
 		} else {
@@ -158,6 +188,9 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 		exists, err := p.repository.ProcessedItemExists(ctx, processedItem)
 		if err != nil {
 			p.logger.Error("Couldn't process item with GUID ", processedItem.GUID, "error: ", err)
+			span.LogFields(
+				otLog.Error(err),
+			)
 			continue
 		}
 		// Skip if such feed (GUID and PubDate) already exist in db as processed item
@@ -165,6 +198,7 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 		// If Pubdate is missing - Update date will be used, otherwise skipped.
 		if exists {
 			p.logger.Debug("Item ", item.GUID, "with publish date ", item.Published, " already exist, skipping processing")
+			span.LogKV("event", "item already exists, skipping processing")
 			continue
 		}
 		// Publish new item to Items service
@@ -179,9 +213,13 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 
 		if err != nil {
 			p.logger.Error("failed to publish new item ", item.GUID, " of publication ", dbFeed.PublicationUUID, " with error ", err)
+			span.LogFields(
+				otLog.Error(err),
+			)
 			continue
 		}
 		p.logger.Info("Pushed item ", item.GUID, " to process")
+		span.LogKV("event", "pushed item to process")
 		if err := p.repository.SaveProcessedItem(ctx, processedItem); err != nil {
 			p.logger.Error("Failure saving new processed item: ", err)
 			continue
@@ -191,15 +229,23 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 	dbFeedMetadata.ETag = feed.ETag
 	dbFeedMetadata.LastModified = feed.LastModified
 	if err = p.repository.SaveFeedHTTPMetadata(ctx, dbFeedMetadata); err != nil {
+		span.LogFields(
+			otLog.Error(err),
+		)
 		return fmt.Errorf("couldn't save feed HTTP metadata, %w", err)
 	}
+	span.LogKV("event", "saved feed http metadata")
 	p.logger.Info("Successfully updated feed ", dbFeed.PublicationUUID)
 	return nil
 }
 
 // readFeedFromURL fetches feed from url and returns parsed feed
 // Uses Etag and Last-Modified to verify if feed didn't change
-func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModified time.Time) (feed *RSSFeed, err error) {
+func (p *rssFeedsProcessor) readFeedFromURL(ctx context.Context, url string, etag string, lastModified time.Time) (feed *RSSFeed, err error) {
+	span, ctx := p.setupTracingSpan(ctx, "read-feed-from-url")
+	defer span.Finish()
+	span.SetTag("feed.url", url)
+
 	var client = http.Client{}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -216,8 +262,12 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 	p.logger.Debug("Set If-Modified-Since header for feed retrieval: ", req.Header.Get("If-Modified-Since"))
 
 	resp, err := client.Do(req)
+	span.LogKV("event", "queried feed remote endpoint")
 
 	if err != nil {
+		span.LogFields(
+			otLog.Error(err),
+		)
 		return nil, err
 	}
 
@@ -230,6 +280,8 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 		}()
 	}
 	p.logger.Debug("Got HTTP response: ", resp.StatusCode)
+	ext.HTTPStatusCode.Set(span, uint16(resp.StatusCode))
+
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, ErrNotModified
 	}
@@ -245,6 +297,9 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 
 	feedBody, err := gofeed.NewParser().Parse(resp.Body)
 	if err != nil {
+		span.LogFields(
+			otLog.Error(err),
+		)
 		return nil, err
 	}
 	feed.Feed = feedBody
@@ -261,28 +316,40 @@ func (p *rssFeedsProcessor) readFeedFromURL(url string, etag string, lastModifie
 			feed.LastModified = parsed
 		}
 	}
-
+	span.LogKV("event", "parsed feed")
 	return feed, err
 }
 
 // Refresh all feeds.
 // Gets all feeds ids from db and pushes per-feed messages to process.
 func (p *rssFeedsProcessor) refreshAllFeeds(ctx context.Context) error {
+	span, ctx := p.setupTracingSpan(ctx, "refresh-all-feeds")
+	defer span.Finish()
+
 	dbFeeds, err := p.repository.GetAll(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get feeds from repository, %w", err)
 	}
 	if len(dbFeeds) == 0 {
+		span.LogKV("error", "no feeds returned")
 		return fmt.Errorf("couldn't get feeds records ids, empty set returned")
 	}
 	p.logger.Debug("Got ", len(dbFeeds), " feeds to refresh from db")
+	// FIXME: go parallel
 	for _, dbFeed := range dbFeeds {
-		if err := p.feedsUpdater.SendUpdateOne(dbFeed.PublicationUUID); err != nil {
+		if err := p.feedsUpdater.SendUpdateOne(ctx, dbFeed.PublicationUUID); err != nil {
 			p.logger.Error("Failure publishing feed refresh for PublicationUUID", dbFeed.PublicationUUID, ": ", err)
 			continue
 		}
 		p.logger.Debug("Published feed refresh for PublicationUUID", dbFeed.PublicationUUID)
 
 	}
+	span.LogKV("event", "finished sending feeds update")
 	return nil
+}
+
+func (p *rssFeedsProcessor) setupTracingSpan(ctx context.Context, name string) (opentracing.Span, context.Context) {
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, p.tracer, name)
+	ext.Component.Set(span, "rssFeedsProcessor")
+	return span, ctx
 }
