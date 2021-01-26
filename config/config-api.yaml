@@ -23,6 +23,7 @@ tracing:
   agent_address: ""
   collector_endpoint: "http://jaeger-collector.jaeger:14268/api/traces"
   log_spans: true
+  disabled: false
 
 database:
   hostname: postgresql

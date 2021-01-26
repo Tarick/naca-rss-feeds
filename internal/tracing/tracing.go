@@ -1,15 +1,18 @@
 package tracing
 
 import (
-	"fmt"
 	"io"
-	"os"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
+
 	jaegerConfig "github.com/uber/jaeger-client-go/config"
+	// We need Zipkin support since Istio uses its headers for tracing
+	// This lib will enable Zipkin headers (e.g. X-B3-Parentspanid) propagation
+	"github.com/uber/jaeger-client-go/zipkin"
 )
 
+// Config defines tracing configuration to be used in config file
 type Config struct {
 	ServiceName       string  `mapstructure:"service_name"`
 	SamplerRate       float64 `mapstructure:"sampler_rate"`
@@ -17,10 +20,11 @@ type Config struct {
 	AgentAddress      string  `mapstructure:"agent_address"`
 	CollectorEndpoint string  `mapstructure:"collector_endpoint"`
 	LogSpans          bool    `mapstructure:"log_spans"`
+	Disabled          bool    `mapstructure:"disabled"`
 }
 
 // New returns an instance of opentracing Tracer based on Jaeger instance
-func New(config Config) (opentracing.Tracer, io.Closer) {
+func New(config Config, logger jaeger.Logger) (opentracing.Tracer, io.Closer, error) {
 	cfg := &jaegerConfig.Configuration{
 		ServiceName: config.ServiceName,
 		Sampler: &jaegerConfig.SamplerConfig{
@@ -32,12 +36,14 @@ func New(config Config) (opentracing.Tracer, io.Closer) {
 			LocalAgentHostPort: config.AgentAddress,
 			CollectorEndpoint:  config.CollectorEndpoint,
 		},
+		Disabled: config.Disabled,
 	}
-	// FIXME: provide system logger to log spans, right now it is just stdout
-	tracer, closer, err := cfg.NewTracer(jaegerConfig.Logger(jaeger.StdLogger))
-	if err != nil {
-		fmt.Printf("ERROR: cannot init Jaeger: %v\n", err)
-		os.Exit(1)
-	}
-	return tracer, closer
+	// Zipkin shares span ID between client and server spans; it must be enabled via the following option.
+	zipkinPropagator := zipkin.NewZipkinB3HTTPHeaderPropagator()
+	tracer, closer, err := cfg.NewTracer(jaegerConfig.Logger(logger),
+		jaegerConfig.Extractor(opentracing.HTTPHeaders, zipkinPropagator),
+		jaegerConfig.Injector(opentracing.HTTPHeaders, zipkinPropagator),
+		jaegerConfig.ZipkinSharedRPCSpan(true))
+
+	return tracer, closer, err
 }

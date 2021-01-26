@@ -1,4 +1,4 @@
-package messaging
+package processor
 
 import (
 	"context"
@@ -10,49 +10,12 @@ import (
 	otLog "github.com/opentracing/opentracing-go/log"
 )
 
-const (
-	FeedsUpdateOne MessageType = iota
-	FeedsUpdateAll
-)
-
-// MessageType defines types of messages
-//go:generate stringer -type=MessageType
-type MessageType uint
-
-// MessageEnvelope defines shared fields for MQ message with message type as action key and Msg as actual message body content
-type MessageEnvelope struct {
-	Type     MessageType       `json:"type,int"`
-	Metadata map[string]string `json:"metadata,string"`
-	// Headers interface{}
-	Msg interface{}
-}
-
-type FeedsUpdateOneMsg struct {
-	PublicationUUID uuid.UUID `json:"publication_uuid,string"`
-}
-type FeedsUpdateAllMsg struct {
-}
-
-// NewFeedsUpdateOneMsg returns message with action to update one feed
-func NewFeedsUpdateOneMessage(publicationUUID uuid.UUID) *MessageEnvelope {
-	return &MessageEnvelope{
-		Type: FeedsUpdateOne,
-		Msg:  FeedsUpdateOneMsg{PublicationUUID: publicationUUID},
-	}
-}
-
-// NewFeedsUpdateAllMsg returns message with action to update all feeds
-func NewFeedsUpdateAllMessage() *MessageEnvelope {
-	return &MessageEnvelope{
-		Type: FeedsUpdateAll,
-		Msg:  FeedsUpdateAllMsg{},
-	}
-}
-
+// MessageProducer is used to publish messages
 type MessageProducer interface {
 	Publish([]byte) error
 }
 
+// NewFeedsUpdateProducer returns producer to publish feeds update messages
 func NewFeedsUpdateProducer(producer MessageProducer, tracer opentracing.Tracer) *rssFeedsUpdateProducer {
 	return &rssFeedsUpdateProducer{producer, tracer}
 }

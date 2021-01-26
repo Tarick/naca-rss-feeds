@@ -1,4 +1,4 @@
-package messaging
+package processor
 
 import (
 	"context"
@@ -17,13 +17,6 @@ import (
 
 	"github.com/mmcdole/gofeed"
 )
-
-type Logger interface {
-	Debug(args ...interface{})
-	Info(args ...interface{})
-	Warn(args ...interface{})
-	Error(args ...interface{})
-}
 
 // ErrNotModified is used for Etag and Last-Modified handling
 var ErrNotModified = errors.New("not modified")
@@ -134,6 +127,8 @@ func (p *rssFeedsProcessor) Process(data []byte) error {
 }
 
 // refreshFeed refreshes single feed
+// uses feed metadata (Etag, LastModified) and retrieves it from the source to check if the feed is new
+// parses it and if there are new items (checked agains processed items repository) - publishes to items service messaging system
 func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uuid.UUID) error {
 	span, ctx := p.setupTracingSpan(ctx, "refresh-feed")
 	defer span.Finish()
@@ -141,7 +136,7 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 
 	dbFeed, err := p.repository.GetByPublicationUUID(ctx, publicationUUID)
 	if err != nil {
-		return fmt.Errorf("couldn't get feed item from repository, %w", err)
+		return fmt.Errorf("couldn't get feed item from repository, %v", err)
 	}
 	if dbFeed == nil {
 		span.LogKV("event", "no feed to refresh")
@@ -149,7 +144,7 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 	}
 	dbFeedMetadata, err := p.repository.GetFeedHTTPMetadataByPublicationUUID(ctx, publicationUUID)
 	if err != nil {
-		return fmt.Errorf("couldn't get feed HTTP metadata from repository, %w", err)
+		return fmt.Errorf("couldn't get feed HTTP metadata from repository, %v", err)
 	}
 	if dbFeedMetadata == nil {
 		return fmt.Errorf("repository doesn't have HTTP metadata items with this publication uuid %v", publicationUUID)
@@ -232,7 +227,7 @@ func (p *rssFeedsProcessor) refreshFeed(ctx context.Context, publicationUUID uui
 		span.LogFields(
 			otLog.Error(err),
 		)
-		return fmt.Errorf("couldn't save feed HTTP metadata, %w", err)
+		return fmt.Errorf("couldn't save feed HTTP metadata, %v", err)
 	}
 	span.LogKV("event", "saved feed http metadata")
 	p.logger.Info("Successfully updated feed ", dbFeed.PublicationUUID)
@@ -260,6 +255,8 @@ func (p *rssFeedsProcessor) readFeedFromURL(ctx context.Context, url string, eta
 
 	req.Header.Set("If-Modified-Since", lastModified.In(p.GMTTimeZoneLocation).Format(time.RFC1123))
 	p.logger.Debug("Set If-Modified-Since header for feed retrieval: ", req.Header.Get("If-Modified-Since"))
+	// Injecting tracing span into outgoing requests - shown with Istio Envoy tracing
+	span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
 
 	resp, err := client.Do(req)
 	span.LogKV("event", "queried feed remote endpoint")
@@ -328,7 +325,7 @@ func (p *rssFeedsProcessor) refreshAllFeeds(ctx context.Context) error {
 
 	dbFeeds, err := p.repository.GetAll(ctx)
 	if err != nil {
-		return fmt.Errorf("couldn't get feeds from repository, %w", err)
+		return fmt.Errorf("couldn't get feeds from repository, %v", err)
 	}
 	if len(dbFeeds) == 0 {
 		span.LogKV("error", "no feeds returned")

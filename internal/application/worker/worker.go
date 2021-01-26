@@ -6,30 +6,26 @@ import (
 	"syscall"
 )
 
-type Worker interface {
-	Start() error
-	Stop()
-}
-
 type MessageConsumer interface {
 	Start() error
 	Stop()
 }
 
-type worker struct {
+type Worker struct {
 	consumer MessageConsumer
 	logger   Logger
 }
 
-func New(consumer MessageConsumer, logger Logger) *worker {
-	return &worker{consumer: consumer, logger: logger}
+func New(consumer MessageConsumer, logger Logger) *Worker {
+	return &Worker{consumer: consumer, logger: logger}
 }
 
-// StartConsume launches worker
-func (w *worker) Start() {
+// Start launches worker
+func (w *Worker) Start() error {
 	// TODO: error handling
 	if err := w.consumer.Start(); err != nil {
-		w.logger.Fatal("Failure starting consumer: ", err)
+		w.logger.Error("Failure starting consumer: ", err)
+		return err
 	}
 	w.logger.Info("Started consumer")
 	// Kill signal handling
@@ -43,9 +39,11 @@ func (w *worker) Start() {
 	w.logger.Info("Started worker, terminate with 'kill <pid>'")
 	<-done
 	// Block, wait for signal above, make it stop if terminating
-	w.Stop()
+	return w.Stop()
 }
-func (w *worker) Stop() {
+
+func (w *Worker) Stop() error {
 	w.consumer.Stop()
 	w.logger.Info("Stopped consumer")
+	return nil
 }

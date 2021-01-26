@@ -96,7 +96,7 @@ func (h *Handler) feedCtx(next http.Handler) http.Handler {
 			span.LogFields(
 				otLog.Error(err),
 			)
-			ErrInvalidRequest(fmt.Errorf("Wrong UUID format: %w", err)).Render(w, r)
+			ErrInvalidRequest(fmt.Errorf("Wrong UUID format: %v", err)).Render(w, r)
 			return
 		}
 		span.SetTag("feed.PublicationUUID", feedPublicationUUID.String())

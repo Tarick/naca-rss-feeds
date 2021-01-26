@@ -30,7 +30,7 @@ require (
 	github.com/mmcdole/gofeed v1.1.0
 	github.com/mmcdole/goxpp v0.0.0-20200921145534-2f3784f67354 // indirect
 	github.com/nsqio/go-nsq v1.0.8
-	github.com/opentracing/opentracing-go v1.1.0
+	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/prometheus/client_golang v1.9.0
 	github.com/shopspring/decimal v1.2.0 // indirect

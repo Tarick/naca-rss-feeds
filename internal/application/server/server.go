@@ -198,11 +198,13 @@ func New(serverConfig Config, logger Logger, handler *Handler) *Server {
 }
 
 // StartAndServe configures routers and starts http server
-func (s *Server) StartAndServe() {
+func (s *Server) StartAndServe() error {
 	s.logger.Info("Server is ready to serve on ", s.httpServer.Addr)
 	if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		s.logger.Fatal(fmt.Sprint("Server startup failed: ", err))
+		s.logger.Error(fmt.Sprint("Server startup failed: ", err))
+		return err
 	}
+	return nil
 }
 
 // FileServer conveniently sets up a http.FileServer handler to serve
