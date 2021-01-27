@@ -29,11 +29,7 @@ func main() {
 		Short: "RSS Feeds API",
 		Long:  `RSS Feeds API`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			server, err := configure(cfgFile)
-			if err != nil {
-				return err
-			}
-			return server.StartAndServe()
+			return startServer(cfgFile)
 		},
 	}
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
@@ -52,8 +48,9 @@ func main() {
 	}
 }
 
-// configure parses configuration file, uses depencency injection to create and return server
-func configure(cfgFile string) (*server.Server, error) {
+// startServer parses configuration file, uses depencency injection to create server and starts it
+// WARNING: do not move out configuration into separate block - we defer a lot of closers, which can't be moved out
+func startServer(cfgFile string) error {
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -63,14 +60,14 @@ func configure(cfgFile string) (*server.Server, error) {
 	}
 	// If the config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("FATAL: error in config file %s. %v", viper.ConfigFileUsed(), err)
+		return fmt.Errorf("FATAL: error in config file %s. %v", viper.ConfigFileUsed(), err)
 	}
 
 	fmt.Println("Using config file:", viper.ConfigFileUsed())
 	// Init logging
 	logCfg := &zaplogger.Config{}
 	if err := viper.UnmarshalKey("logging", logCfg); err != nil {
-		return nil, fmt.Errorf("Failure reading 'logging' configuration, %v", err)
+		return fmt.Errorf("Failure reading 'logging' configuration, %v", err)
 	}
 	logger := zaplogger.New(logCfg).Sugar()
 	defer logger.Sync()
@@ -78,43 +75,44 @@ func configure(cfgFile string) (*server.Server, error) {
 	// Init tracing
 	tracingCfg := tracing.Config{}
 	if err := viper.UnmarshalKey("tracing", &tracingCfg); err != nil {
-		return nil, fmt.Errorf("Failure reading 'tracing' configuration, %v", err)
+		return fmt.Errorf("Failure reading 'tracing' configuration, %v", err)
 	}
 	tracer, tracerCloser, err := tracing.New(tracingCfg, tracing.NewZapLogger(logger))
 	defer tracerCloser.Close()
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: Cannot init tracing, %v", err)
+		return fmt.Errorf("FATAL: Cannot init tracing, %v", err)
 	}
 
 	// Create db configuration
 	databaseViperConfig := viper.Sub("database")
 	dbCfg := &postgresql.Config{}
 	if err := databaseViperConfig.UnmarshalExact(dbCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading 'database' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading 'database' configuration, %v", err)
 	}
 	// Open db
 	db, err := postgresql.New(dbCfg, postgresql.NewZapLogger(logger.Desugar()), tracer)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: failure creating database connection, %v", err)
+		return fmt.Errorf("FATAL: failure creating database connection, %v", err)
 	}
 
 	// Create NSQ producer
 	publishViperConfig := viper.Sub("publish")
 	publishCfg := &producer.MessageProducerConfig{}
 	if err := publishViperConfig.UnmarshalExact(&publishCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading NSQ 'publish' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading NSQ 'publish' configuration, %v", err)
 	}
 	messageProducer, err := producer.New(publishCfg)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: failure initialising NSQ producer, %v", err)
+		return fmt.Errorf("FATAL: failure initialising NSQ producer, %v", err)
 	}
 	rssFeedsUpdateProducer := processor.NewFeedsUpdateProducer(messageProducer, tracer)
 	// Create web server
 	serverCfg := server.Config{}
 	serverViperConfig := viper.Sub("server")
 	if err := serverViperConfig.UnmarshalExact(&serverCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading 'server' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading 'server' configuration, %v", err)
 	}
 	handler := server.NewHandler(logger, tracer, db, rssFeedsUpdateProducer)
-	return server.New(serverCfg, logger, handler), nil
+	srv := server.New(serverCfg, logger, handler)
+	return srv.StartAndServe()
 }

@@ -7,16 +7,16 @@ import (
 	"github.com/uber/jaeger-client-go"
 
 	jaegerConfig "github.com/uber/jaeger-client-go/config"
+	"github.com/uber/jaeger-client-go/zipkin"
 	// We need Zipkin support since Istio uses its headers for tracing
 	// This lib will enable Zipkin headers (e.g. X-B3-Parentspanid) propagation
-	"github.com/uber/jaeger-client-go/zipkin"
 )
 
 // Config defines tracing configuration to be used in config file
 type Config struct {
 	ServiceName       string  `mapstructure:"service_name"`
 	SamplerRate       float64 `mapstructure:"sampler_rate"`
-	SamplerType       string  `mapstructure:"sample_type"`
+	SamplerType       string  `mapstructure:"sampler_type"`
 	AgentAddress      string  `mapstructure:"agent_address"`
 	CollectorEndpoint string  `mapstructure:"collector_endpoint"`
 	LogSpans          bool    `mapstructure:"log_spans"`

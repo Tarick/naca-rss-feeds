@@ -331,7 +331,7 @@ func (h *Handler) getFeeds(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) setupTracingSpan(r *http.Request, name string) (opentracing.Span, context.Context) {
 	// we ignore error since if there are missing headers it will start new trace
 	spanContext, _ := h.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-	span := h.tracer.StartSpan(name, ext.RPCServerOption(spanContext))
+	span := h.tracer.StartSpan(name, opentracing.ChildOf(spanContext))
 	ctx := opentracing.ContextWithSpan(r.Context(), span)
 	ext.Component.Set(span, "httpServer-chi")
 	ext.HTTPMethod.Set(span, r.Method)

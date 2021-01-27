@@ -16,8 +16,7 @@ type MessageType uint
 type MessageEnvelope struct {
 	Type     MessageType       `json:"type,int"`
 	Metadata map[string]string `json:"metadata,string"`
-	// Headers interface{}
-	Msg interface{}
+	Msg      interface{}
 }
 
 // FeedsUpdateOneMsg is used to trigger update for one feed using its publicationUUID

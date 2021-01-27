@@ -28,11 +28,7 @@ func main() {
 		Short: "RSS feeds worker to fetch and parse feeds",
 		Long:  `Command line worker for RSS/Atom feeds retrieval and news item producing`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wrkr, err := configure(cfgFile)
-			if err != nil {
-				return err
-			}
-			return wrkr.Start()
+			return startWorker(cfgFile)
 		},
 	}
 	// Version command, attached to root
@@ -55,7 +51,7 @@ func main() {
 }
 
 // We read config file and use dependency injection to create worker
-func configure(cfgFile string) (*worker.Worker, error) {
+func startWorker(cfgFile string) error {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -65,13 +61,13 @@ func configure(cfgFile string) (*worker.Worker, error) {
 	}
 	// If the config file is found, read it in.
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("FATAL: error in config file %s, %v", viper.ConfigFileUsed(), err)
+		return fmt.Errorf("FATAL: error in config file %s, %v", viper.ConfigFileUsed(), err)
 	}
 	fmt.Println("Using config file:", viper.ConfigFileUsed())
 	// Init logging
 	logCfg := &zaplogger.Config{}
 	if err := viper.UnmarshalKey("logging", logCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: Failure reading 'logging' configuration, %v", err)
+		return fmt.Errorf("FATAL: Failure reading 'logging' configuration, %v", err)
 	}
 	logger := zaplogger.New(logCfg).Sugar()
 	defer logger.Sync()
@@ -79,42 +75,42 @@ func configure(cfgFile string) (*worker.Worker, error) {
 	// Init tracing
 	tracingCfg := tracing.Config{}
 	if err := viper.UnmarshalKey("tracing", &tracingCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: Failure reading 'tracing' configuration, %v", err)
+		return fmt.Errorf("FATAL: Failure reading 'tracing' configuration, %v", err)
 	}
 	tracer, tracerCloser, err := tracing.New(tracingCfg, tracing.NewZapLogger(logger))
 	defer tracerCloser.Close()
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: Cannot init tracing, %v", err)
+		return fmt.Errorf("FATAL: Cannot init tracing, %v", err)
 	}
 
 	// Create db configuration
 	databaseViperConfig := viper.Sub("database")
 	dbCfg := &postgresql.Config{}
 	if err := databaseViperConfig.UnmarshalExact(dbCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading 'database' configuration: %v", err)
+		return fmt.Errorf("FATAL: failure reading 'database' configuration: %v", err)
 	}
 	// Open db
 	db, err := postgresql.New(dbCfg, postgresql.NewZapLogger(logger.Desugar()), tracer)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: failure creating database connection, %v", err)
+		return fmt.Errorf("FATAL: failure creating database connection, %v", err)
 	}
 
 	// Create NSQ producer
 	publishViperConfig := viper.Sub("publish")
 	publishCfg := &producer.MessageProducerConfig{}
 	if err := publishViperConfig.UnmarshalExact(&publishCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading NSQ 'publish' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading NSQ 'publish' configuration, %v", err)
 	}
 	messageProducer, err := producer.New(publishCfg)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: failure initialising NSQ producer, %v", err)
+		return fmt.Errorf("FATAL: failure initialising NSQ producer, %v", err)
 	}
 	rssFeedsUpdateProducer := processor.NewFeedsUpdateProducer(messageProducer, tracer)
 
 	consumeViperConfig := viper.Sub("consume")
 	consumeCfg := &consumer.MessageConsumerConfig{}
 	if err := consumeViperConfig.UnmarshalExact(&consumeCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading 'consume' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading 'consume' configuration, %v", err)
 	}
 	itemPublisherClientViperConfig := viper.Sub("itemPublish")
 	// FIXME: rather unclear initialization of config
@@ -123,18 +119,18 @@ func configure(cfgFile string) (*worker.Worker, error) {
 		Topic string `mapstructure:"topic"`
 	}{}
 	if err := itemPublisherClientViperConfig.UnmarshalExact(&itemPublisherClientCfg); err != nil {
-		return nil, fmt.Errorf("FATAL: failure reading 'itemPublish' configuration, %v", err)
+		return fmt.Errorf("FATAL: failure reading 'itemPublish' configuration, %v", err)
 	}
 	itemPublisherClient, err := itempublisher.New(itemPublisherClientCfg.Host, itemPublisherClientCfg.Topic)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: failure creating itemPublisher client, %v", err)
+		return fmt.Errorf("FATAL: failure creating itemPublisher client, %v", err)
 	}
 	// Construct consumer with message handler
 	rssFeedsProcessor := processor.NewRSSFeedsProcessor(db, rssFeedsUpdateProducer, itemPublisherClient, logger, tracer)
 	consumer, err := consumer.New(consumeCfg, rssFeedsProcessor, logger)
 	if err != nil {
-		return nil, fmt.Errorf("FATAL: consumer creation failed, %v", err)
+		return fmt.Errorf("FATAL: consumer creation failed, %v", err)
 	}
-	return worker.New(consumer, logger), nil
-
+	wrkr := worker.New(consumer, logger)
+	return wrkr.Start()
 }
